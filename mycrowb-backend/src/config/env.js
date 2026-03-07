@@ -1,0 +1,20 @@
+require('dotenv').config();
+
+const required = ['DATABASE_URL', 'JWT_SECRET'];
+required.forEach((key) => {
+  if (!process.env[key]) throw new Error(`Missing required environment variable: ${key}`);
+});
+
+module.exports = {
+  port: Number(process.env.PORT || 8080),
+  jwtSecret: process.env.JWT_SECRET,
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  twilioAccountSid: process.env.TWILIO_ACCOUNT_SID,
+  twilioAuthToken: process.env.TWILIO_AUTH_TOKEN,
+  twilioVerifyServiceSid: process.env.TWILIO_VERIFY_SERVICE_SID,
+  smsFallbackSender: process.env.SMS_FALLBACK_SENDER || 'MYCROWB',
+  osrmBaseUrl: process.env.OSRM_BASE_URL || 'https://router.project-osrm.org',
+  aiServiceUrl: process.env.AI_SERVICE_URL || 'http://localhost:8001',
+  appBaseUrl: process.env.APP_BASE_URL || 'http://localhost:8080',
+  uploadDir: process.env.UPLOAD_DIR || 'uploads'
+};

@@ -1,0 +1,2 @@
+-- Placeholder migration.
+-- Run `npx prisma migrate dev --name init` to generate SQL for your target DB version.

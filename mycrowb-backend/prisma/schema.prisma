@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  BARBER
+  ADMIN
+  SERVICE_STAFF
+}
+
+enum ShopStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum CertificateType {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+  SPECIAL
+}
+
+enum CollectionStatus {
+  PENDING
+  COLLECTED
+  MISSED
+}
+
+model User {
+  id          String      @id @default(cuid())
+  mobile      String      @unique
+  name        String
+  role        UserRole
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  barberShop  BarberShop?
+  admin       Admin?
+  staff       ServiceStaff?
+  collections Collection[] @relation("CollectorCollections")
+  ratings     Rating[]    @relation("CollectorRatings")
+}
+
+model BarberShop {
+  id               String        @id @default(cuid())
+  ownerId          String        @unique
+  shopName         String
+  roomNumber       String?
+  buildingNumber   String?
+  address          String
+  city             String
+  state            String
+  latitude         Float
+  longitude        Float
+  registrationDate DateTime      @default(now())
+  status           ShopStatus    @default(ACTIVE)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  owner            User          @relation(fields: [ownerId], references: [id])
+  collections      Collection[]
+  certificates     Certificate[]
+  ratings          Rating[]
+  predictions      Prediction[]
+}
+
+model Collection {
+  id             String           @id @default(cuid())
+  shopId         String
+  collectorId    String
+  month          Int
+  year           Int
+  hairWeight     Float
+  status         CollectionStatus @default(PENDING)
+  collected      Boolean          @default(false)
+  paid           Boolean          @default(false)
+  amount         Float
+  collectionDate DateTime?
+  imageProofUrl  String?
+  notes          String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  shop           BarberShop       @relation(fields: [shopId], references: [id])
+  collector      User             @relation("CollectorCollections", fields: [collectorId], references: [id])
+  receipt        Receipt?
+
+  @@index([month, year])
+  @@index([collectorId, collectionDate])
+}
+
+model Receipt {
+  id            String     @id @default(cuid())
+  collectionId  String     @unique
+  receiptNumber String     @unique
+  amount        Float
+  paymentDate   DateTime
+  pdfUrl        String
+  createdAt     DateTime   @default(now())
+  collection    Collection @relation(fields: [collectionId], references: [id])
+}
+
+model Certificate {
+  id              String          @id @default(cuid())
+  shopId           String
+  certificateCode String          @unique
+  certificateType  CertificateType
+  issueDate        DateTime
+  validUntil       DateTime
+  qrCode           String
+  pdfUrl           String?
+  createdAt        DateTime        @default(now())
+  shop             BarberShop      @relation(fields: [shopId], references: [id])
+}
+
+model Rating {
+  id          String    @id @default(cuid())
+  shopId      String
+  collectorId String
+  rating      Int
+  comment     String?
+  createdAt   DateTime  @default(now())
+  shop        BarberShop @relation(fields: [shopId], references: [id])
+  collector   User       @relation("CollectorRatings", fields: [collectorId], references: [id])
+
+  @@index([collectorId, createdAt])
+}
+
+model Admin {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  department String?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
+}
+
+model ServiceStaff {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  city       String
+  vehicleId  String?
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
+}
+
+model Analytics {
+  id                 String   @id @default(cuid())
+  month              Int
+  year               Int
+  city               String
+  totalHairCollected Float
+  activeShops        Int
+  revenue            Float
+  certificatesIssued Int      @default(0)
+  createdAt          DateTime @default(now())
+
+  @@unique([month, year, city])
+}
+
+model Prediction {
+  id                     String    @id @default(cuid())
+  shopId                  String
+  predictedHairNextMonth Float
+  modelVersion            String
+  generatedAt             DateTime @default(now())
+  shop                    BarberShop @relation(fields: [shopId], references: [id])
+
+  @@index([shopId, generatedAt])
+}
