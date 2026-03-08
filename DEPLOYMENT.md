@@ -13,9 +13,9 @@
 4. Run migrations command: `npx prisma migrate deploy`.
 
 ## Frontend (Cloudflare Pages)
-1. Connect repo folder `mycrowb-platform`.
-2. Build command: `npm run build`.
-3. Output directory: `dist`.
+1. Connect the repository root (this repo now includes a root `wrangler.toml` for Pages).
+2. Build command is auto-detected from `wrangler.toml`: `cd mycrowb-platform && npm ci && npm run build`.
+3. Output directory is auto-detected from `wrangler.toml`: `mycrowb-platform/dist`.
 4. Set `VITE_API_URL` pointing to Railway backend.
 
 ## AI Service
