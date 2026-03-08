@@ -5,20 +5,20 @@ const featureCards = [
   {
     title: 'For barber shops',
     description: 'Track collection history, download receipts, and monitor eco-impact from one dashboard.',
-    to: '/login',
+    to: '/login?role=barber',
     cta: 'Barber login'
   },
   {
     title: 'For collection staff',
     description: 'Follow daily routes, confirm pickups, and keep collection operations up to date in real time.',
-    to: '/staff/today-route',
-    cta: 'View staff route'
+    to: '/login?role=staff',
+    cta: 'Staff login'
   },
   {
     title: 'For admins',
     description: 'Oversee shops, analytics, certificates, and payments with centralized operational controls.',
-    to: '/admin/overview',
-    cta: 'Open admin overview'
+    to: '/login?role=admin',
+    cta: 'Admin login'
   }
 ];
 
