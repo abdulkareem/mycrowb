@@ -9,7 +9,7 @@
 ## Backend (Railway)
 1. Create Railway service from `mycrowb-backend`.
 2. Set environment variables from `mycrowb-backend/.env.example`.
-3. Attach PostgreSQL and set `DATABASE_URL`.
+3. Attach PostgreSQL and set `DATABASE_URL` (must begin with `postgresql://` or `postgres://`). On Railway, prefer referencing `Postgres.DATABASE_URL`.
 4. Run migrations command: `npx prisma migrate deploy`.
 
 ## Frontend (Cloudflare Pages)
