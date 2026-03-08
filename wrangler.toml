@@ -1,8 +1,6 @@
 name = "mycrowb-platform"
 compatibility_date = "2024-01-01"
-pages_build_output_dir = "./dist"
+pages_build_output_dir = "./mycrowb-platform/dist"
 
 [build]
-command = "cd mycrowb-platform && npm ci && npm run build"
-
-
+command = "cd mycrowb-platform && npm install && npm run build"
