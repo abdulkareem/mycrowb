@@ -2,6 +2,29 @@ const prisma = require('../config/prisma');
 const { appBaseUrl } = require('../config/env');
 const { generateCertificatePdf } = require('../services/pdf.service');
 
+function generateCertificateCode(length = 14) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let value = '';
+
+  for (let i = 0; i < length; i += 1) {
+    value += chars[Math.floor(Math.random() * chars.length)];
+  }
+
+  return value;
+}
+
+async function createUniqueCertificateCode() {
+  let code = generateCertificateCode();
+
+  // Extremely unlikely collision, but we still ensure uniqueness.
+  // eslint-disable-next-line no-await-in-loop
+  while (await prisma.certificate.findUnique({ where: { certificateCode: code } })) {
+    code = generateCertificateCode();
+  }
+
+  return code;
+}
+
 async function issueCertificate(req, res, next) {
   try {
     const code = `MC-${Date.now()}`;
@@ -69,15 +92,41 @@ async function verifyCertificate(req, res, next) {
 
 async function getMyLatestCertificate(req, res, next) {
   try {
-    const shop = await prisma.barberShop.findUnique({ where: { ownerId: req.user.sub } });
+    const shop = await prisma.barberShop.findUnique({
+      where: { ownerId: req.user.sub },
+      include: { owner: true }
+    });
     if (!shop) return res.status(404).json({ message: 'Shop not found for barber' });
 
-    const cert = await prisma.certificate.findFirst({
-      where: { shopId: shop.id },
-      orderBy: { issueDate: 'desc' }
+    const code = await createUniqueCertificateCode();
+    const issueDate = new Date();
+    const verifyUrl = `${appBaseUrl}/api/v1/certificates/verify/${code}`;
+    const pdfUrl = await generateCertificatePdf({
+      shopName: shop.shopName,
+      ownerName: shop.owner?.name || shop.ownerName,
+      ownerMobile: shop.owner?.mobile,
+      address: shop.address,
+      city: shop.city,
+      state: shop.state,
+      latitude: shop.latitude,
+      longitude: shop.longitude,
+      certificateCode: code,
+      issueDate,
+      verifyUrl
     });
 
-    if (!cert) return res.status(404).json({ message: 'No certificates found' });
+    const cert = await prisma.certificate.create({
+      data: {
+        shopId: shop.id,
+        certificateCode: code,
+        certificateType: 'SPECIAL',
+        issueDate,
+        validUntil: new Date(new Date(issueDate).setFullYear(issueDate.getFullYear() + 1)),
+        qrCode: verifyUrl,
+        pdfUrl
+      }
+    });
+
     return res.json(cert);
   } catch (error) {
     next(error);

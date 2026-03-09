@@ -36,6 +36,7 @@ async function generateCertificatePdf({
   await createPdf(filepath, (doc) => {
     doc.fontSize(22).fillColor('#2E7D32').text('MYCROWB YOUR ECO FRIEND LLP', { align: 'center' });
     doc.moveDown().fontSize(18).fillColor('#000').text('Hair Waste Recycling Certificate', { align: 'center' });
+    doc.moveDown().fontSize(13).text('This certifies that the below profile is a registered user of MyCrowb.', { align: 'center' });
     doc.moveDown(2);
     doc.fontSize(12)
       .text(`Shop Name: ${shopName}`)
