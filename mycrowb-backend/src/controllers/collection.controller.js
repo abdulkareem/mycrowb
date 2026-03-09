@@ -51,4 +51,24 @@ async function markPayment(req, res, next) {
   }
 }
 
-module.exports = { markCollection, markPayment };
+async function listMyCollections(req, res, next) {
+  try {
+    const shop = await prisma.barberShop.findUnique({ where: { ownerId: req.user.sub } });
+    if (!shop) return res.status(404).json({ message: 'Shop not found for barber' });
+
+    const collections = await prisma.collection.findMany({
+      where: { shopId: shop.id },
+      orderBy: [{ year: 'desc' }, { month: 'desc' }],
+      include: {
+        collector: { select: { name: true } },
+        receipt: true
+      }
+    });
+
+    return res.json(collections);
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { markCollection, markPayment, listMyCollections };
