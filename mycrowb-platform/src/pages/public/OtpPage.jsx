@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import client from '../../api/client';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
 
@@ -12,15 +13,30 @@ export default function OtpPage() {
   const navigate = useNavigate();
   const { state } = useLocation();
   const [otp, setOtp] = useState('');
+  const [message, setMessage] = useState('');
 
   const roleLabel = useMemo(() => roleLabels[state?.role] ?? 'User', [state?.role]);
   const dashboardPath = state?.dashboard ?? '/';
 
-  const verifyOtp = (event) => {
+  const verifyOtp = async (event) => {
     event.preventDefault();
+    setMessage('');
 
-    if (/^\d{6}$/.test(otp)) {
+    if (!/^\d{6}$/.test(otp)) {
+      setMessage('Please enter a valid 6 digit OTP.');
+      return;
+    }
+
+    try {
+      const response = await client.post('/auth/verify-otp', {
+        mobile: state?.mobile,
+        code: otp
+      });
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
       navigate(dashboardPath);
+    } catch (error) {
+      setMessage(error.response?.data?.message || 'OTP verification failed.');
     }
   };
 
@@ -48,7 +64,8 @@ export default function OtpPage() {
           </button>
         </form>
 
-        <p className="mt-3 text-xs text-gray-500">Demo mode: any 6-digit OTP is accepted for all roles.</p>
+        <p className="mt-3 text-xs text-gray-500">Demo mode: use the OTP received in SMS or server logs.</p>
+        {message && <p className="mt-2 text-sm text-red-600">{message}</p>}
         <Link to="/login" className="mt-4 inline-block text-sm font-medium text-primaryGreen">
           ← Change mobile/role
         </Link>

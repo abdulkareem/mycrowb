@@ -11,7 +11,8 @@ const defaultForm = {
   wardNumber: '',
   localBody: '',
   address: '',
-  city: '',
+  district: '',
+  registeredAssociationName: '',
   state: '',
   latitude: '',
   longitude: '',
@@ -40,7 +41,8 @@ export default function ProfilePage() {
           wardNumber: data.wardNumber || '',
           localBody: data.localBody || '',
           address: data.address || '',
-          city: data.city || '',
+          district: data.district || '',
+          registeredAssociationName: data.registeredAssociationName || '',
           state: data.state || '',
           latitude: data.latitude ?? '',
           longitude: data.longitude ?? '',
@@ -100,13 +102,6 @@ export default function ProfilePage() {
   return (
     <Layout title="Profile">
       <form className="max-w-3xl rounded-xl bg-white p-6 shadow-sm grid gap-3" onSubmit={saveProfile}>
-        <button
-          className="w-fit rounded-md border border-gray-300 px-3 py-1 text-sm text-gray-700"
-          type="button"
-          onClick={() => navigate(-1)}
-        >
-          ← Back
-        </button>
         <p className="text-gray-700">Complete profile once; fields lock after save. Edit is allowed only after admin approval.</p>
 
         {Object.entries(form).map(([name, value]) => (
@@ -116,9 +111,9 @@ export default function ProfilePage() {
             value={value}
             onChange={handleChange}
             className="rounded-md border border-gray-300 p-2"
-            placeholder={name}
+            placeholder={name === 'district' ? 'district' : name === 'registeredAssociationName' ? 'registered association name (optional)' : name}
             readOnly={readOnly}
-            required={['shopName', 'ownerName', 'address', 'city', 'state', 'whatsappNumber'].includes(name)}
+            required={['shopName', 'ownerName', 'address', 'district', 'state', 'whatsappNumber', 'employeeCount', 'chairCount', 'latitude', 'longitude', 'roomNumber', 'buildingNumber', 'wardNumber', 'localBody'].includes(name)}
           />
         ))}
 
@@ -126,9 +121,16 @@ export default function ProfilePage() {
           Get location from mobile
         </button>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button className="rounded-md bg-primaryGreen p-2 text-white disabled:opacity-60" type="submit" disabled={readOnly}>
             Save profile
+          </button>
+          <button
+            className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700"
+            type="button"
+            onClick={() => navigate(-1)}
+          >
+            ← Back
           </button>
           <button className="rounded-md border border-primaryGreen p-2 text-primaryGreen" type="button" onClick={requestEdit}>
             Send request to edit to admin

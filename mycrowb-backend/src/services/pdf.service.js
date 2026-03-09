@@ -22,7 +22,7 @@ async function generateCertificatePdf({
   ownerName,
   ownerMobile,
   address,
-  city,
+  district,
   state,
   latitude,
   longitude,

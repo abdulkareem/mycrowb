@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
+import client from '../../api/client';
 
 const roles = [
   { key: 'barber', label: 'Barber', dashboard: '/barber/dashboard' },
@@ -17,22 +18,29 @@ export default function LoginPage() {
 
   const [mobile, setMobile] = useState('');
   const [role, setRole] = useState(defaultRole);
+  const [message, setMessage] = useState('');
 
   const selectedRole = useMemo(() => roles.find((item) => item.key === role), [role]);
 
-  const requestOtp = (event) => {
+  const requestOtp = async (event) => {
     event.preventDefault();
+    setMessage('');
     if (!mobile.trim() || !selectedRole) {
       return;
     }
 
-    navigate('/otp', {
-      state: {
-        mobile,
-        role: selectedRole.key,
-        dashboard: selectedRole.dashboard
-      }
-    });
+    try {
+      await client.post('/auth/request-otp', { mobile });
+      navigate('/otp', {
+        state: {
+          mobile,
+          role: selectedRole.key,
+          dashboard: selectedRole.dashboard
+        }
+      });
+    } catch (error) {
+      setMessage(error.response?.data?.message || 'Unable to request OTP.');
+    }
   };
 
   return (
@@ -68,6 +76,7 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-3 text-xs text-gray-500">Demo mode: any mobile number is accepted.</p>
+        {message && <p className="mt-2 text-sm text-red-600">{message}</p>}
         <Link to="/" className="mt-4 inline-block text-sm font-medium text-primaryGreen">
           ← Back to home
         </Link>

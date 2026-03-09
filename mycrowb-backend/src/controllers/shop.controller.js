@@ -61,6 +61,29 @@ async function updateMyShopProfile(req, res, next) {
       return res.status(403).json({ message: 'Profile is locked. Request admin approval to edit.' });
     }
 
+
+    const requiredFields = [
+      'shopName',
+      'ownerName',
+      'roomNumber',
+      'buildingNumber',
+      'wardNumber',
+      'localBody',
+      'address',
+      'district',
+      'state',
+      'latitude',
+      'longitude',
+      'whatsappNumber',
+      'employeeCount',
+      'chairCount'
+    ];
+
+    const missingField = requiredFields.find((field) => req.body[field] === undefined || req.body[field] === null || `${req.body[field]}`.trim() === '');
+    if (missingField) {
+      return res.status(400).json({ message: `${missingField} is required` });
+    }
+
     const data = {
       shopName: req.body.shopName,
       roomNumber: req.body.roomNumber,
@@ -68,7 +91,8 @@ async function updateMyShopProfile(req, res, next) {
       wardNumber: req.body.wardNumber,
       localBody: req.body.localBody,
       address: req.body.address,
-      city: req.body.city,
+      district: req.body.district,
+      registeredAssociationName: req.body.registeredAssociationName,
       state: req.body.state,
       latitude: req.body.latitude === undefined ? undefined : Number(req.body.latitude),
       longitude: req.body.longitude === undefined ? undefined : Number(req.body.longitude),
@@ -95,7 +119,8 @@ async function updateMyShopProfile(req, res, next) {
         longitude: Number(req.body.longitude ?? 0),
         shopName: req.body.shopName || 'Barber Shop',
         address: req.body.address || '',
-        city: req.body.city || '',
+        district: req.body.district || '',
+        registeredAssociationName: req.body.registeredAssociationName || null,
         state: req.body.state || ''
       }
     });
