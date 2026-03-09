@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-const required = ['DATABASE_URL', 'JWT_SECRET'];
+const required = ['JWT_SECRET'];
 required.forEach((key) => {
   if (!process.env[key]) throw new Error(`Missing required environment variable: ${key}`);
 });
