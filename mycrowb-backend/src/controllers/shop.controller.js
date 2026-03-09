@@ -56,9 +56,8 @@ async function getMyShop(req, res, next) {
 async function updateMyShopProfile(req, res, next) {
   try {
     const existingShop = await prisma.barberShop.findUnique({ where: { ownerId: req.user.sub } });
-    if (!existingShop) return res.status(404).json({ message: 'Shop profile not found' });
 
-    if (existingShop.profileLocked && !existingShop.editApproved) {
+    if (existingShop?.profileLocked && !existingShop.editApproved) {
       return res.status(403).json({ message: 'Profile is locked. Request admin approval to edit.' });
     }
 
@@ -86,9 +85,19 @@ async function updateMyShopProfile(req, res, next) {
       await prisma.user.update({ where: { id: req.user.sub }, data: { name: req.body.ownerName } });
     }
 
-    const shop = await prisma.barberShop.update({
+    const shop = await prisma.barberShop.upsert({
       where: { ownerId: req.user.sub },
-      data
+      update: data,
+      create: {
+        ownerId: req.user.sub,
+        ...data,
+        latitude: Number(req.body.latitude ?? 0),
+        longitude: Number(req.body.longitude ?? 0),
+        shopName: req.body.shopName || 'Barber Shop',
+        address: req.body.address || '',
+        city: req.body.city || '',
+        state: req.body.state || ''
+      }
     });
 
     return res.json(shop);
@@ -123,6 +132,7 @@ async function setProfileEditApproval(req, res, next) {
     const shop = await prisma.barberShop.update({
       where: { id: req.params.id },
       data: {
+        profileLocked: !approved,
         editApproved: approved,
         editRequestPending: false
       }
