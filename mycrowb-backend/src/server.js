@@ -3,11 +3,13 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
-const { port } = require('./config/env');
+const { port, trustProxy } = require('./config/env');
 const routes = require('./routes');
 const { errorHandler } = require('./middleware/error.middleware');
 
 const app = express();
+
+app.set('trust proxy', trustProxy);
 
 app.use(helmet());
 app.use(cors());
