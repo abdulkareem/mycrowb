@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import client from '../../api/client';
 import Layout from '../../components/layout/Layout';
 
@@ -24,6 +25,7 @@ export default function ProfilePage() {
   const [locked, setLocked] = useState(false);
   const [editApproved, setEditApproved] = useState(false);
   const [message, setMessage] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     client
@@ -85,7 +87,9 @@ export default function ProfilePage() {
     setMessage('');
     try {
       await client.post('/shops/me/request-edit');
-      setMessage('Edit request sent to admin.');
+      setLocked(true);
+      setEditApproved(false);
+      setMessage('Edit request sent to admin. Waiting for admin to unblock.');
     } catch (_error) {
       setMessage('Unable to send edit request.');
     }
@@ -96,6 +100,13 @@ export default function ProfilePage() {
   return (
     <Layout title="Profile">
       <form className="max-w-3xl rounded-xl bg-white p-6 shadow-sm grid gap-3" onSubmit={saveProfile}>
+        <button
+          className="w-fit rounded-md border border-gray-300 px-3 py-1 text-sm text-gray-700"
+          type="button"
+          onClick={() => navigate(-1)}
+        >
+          ← Back
+        </button>
         <p className="text-gray-700">Complete profile once; fields lock after save. Edit is allowed only after admin approval.</p>
 
         {Object.entries(form).map(([name, value]) => (
