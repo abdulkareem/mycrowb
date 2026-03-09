@@ -22,7 +22,7 @@ async function generateCertificatePdf({
   ownerName,
   ownerMobile,
   address,
-  city,
+  district,
   state,
   latitude,
   longitude,
@@ -42,7 +42,7 @@ async function generateCertificatePdf({
       .text(`Shop Name: ${shopName}`)
       .text(`Owner Name: ${ownerName || 'N/A'}`)
       .text(`Mobile Number: ${ownerMobile || 'N/A'}`)
-      .text(`Address: ${address || ''}, ${city || ''}, ${state || ''}`)
+      .text(`Address: ${address || ''}, ${district || ''}, ${state || ''}`)
       .text(`Location: ${latitude}, ${longitude}`)
       .text(`Certificate Code: ${certificateCode}`)
       .text(`Issue Date: ${new Date(issueDate).toDateString()}`)

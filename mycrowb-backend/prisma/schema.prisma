@@ -55,7 +55,8 @@ model BarberShop {
   wardNumber       String?
   localBody        String?
   address          String
-  city             String
+  district         String
+  registeredAssociationName String?
   state            String
   whatsappNumber   String?
   employeeCount    Int?
