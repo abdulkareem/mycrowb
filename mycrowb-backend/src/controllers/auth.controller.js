@@ -15,7 +15,7 @@ async function requestOtp(req, res, next) {
 
 async function verifyOtpLogin(req, res, next) {
   try {
-    const { mobile, code, name } = req.body;
+    const { mobile, code, name, role } = req.body;
     const normalizedMobile = normalizeMobile(mobile);
     const valid = await verifyOtp(normalizedMobile, code);
     if (!valid) return res.status(400).json({ message: 'Invalid OTP' });
@@ -37,6 +37,23 @@ async function verifyOtpLogin(req, res, next) {
       }
 
       throw error;
+    }
+
+    if (!user && role === 'admin') {
+      user = await prisma.user.create({
+        data: {
+          mobile: normalizedMobile,
+          name: name || 'Admin',
+          role: 'ADMIN'
+        }
+      });
+
+      await prisma.admin.create({
+        data: {
+          userId: user.id,
+          department: 'Operations'
+        }
+      });
     }
 
     if (!user) {
