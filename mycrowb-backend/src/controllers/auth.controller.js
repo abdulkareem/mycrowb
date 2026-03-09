@@ -1,11 +1,12 @@
 const prisma = require('../config/prisma');
 const { sendOtp, verifyOtp } = require('../services/otp.service');
 const { signToken } = require('../utils/jwt');
+const { mobileLookupVariants, normalizeMobile } = require('../utils/mobile');
 
 async function requestOtp(req, res, next) {
   try {
     const { mobile } = req.body;
-    await sendOtp(mobile);
+    await sendOtp(normalizeMobile(mobile));
     res.json({ message: 'OTP sent successfully' });
   } catch (error) {
     next(error);
@@ -15,14 +16,21 @@ async function requestOtp(req, res, next) {
 async function verifyOtpLogin(req, res, next) {
   try {
     const { mobile, code, name } = req.body;
-    const valid = await verifyOtp(mobile, code);
+    const normalizedMobile = normalizeMobile(mobile);
+    const valid = await verifyOtp(normalizedMobile, code);
     if (!valid) return res.status(400).json({ message: 'Invalid OTP' });
 
     const notRegisteredMessage = 'You are not registered with Mycrowb Your Eco Friend LLP. If you want to register, contact 9747917623 or mycrowbee@gmail.com.';
 
     let user;
     try {
-      user = await prisma.user.findUnique({ where: { mobile } });
+      user = await prisma.user.findFirst({
+        where: {
+          mobile: {
+            in: mobileLookupVariants(normalizedMobile)
+          }
+        }
+      });
     } catch (error) {
       if (error.code === 'P2021') {
         return res.status(404).json({ message: notRegisteredMessage });
