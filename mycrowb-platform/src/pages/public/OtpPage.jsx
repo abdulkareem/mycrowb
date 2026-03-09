@@ -30,7 +30,8 @@ export default function OtpPage() {
     try {
       const response = await client.post('/auth/verify-otp', {
         mobile: state?.mobile,
-        code: otp
+        code: otp,
+        role: state?.role
       });
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
