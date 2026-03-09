@@ -12,22 +12,35 @@ export default function CertificatesPage() {
       const response = await client.get('/certificates/my/latest');
       const downloadUrl = `${client.defaults.baseURL.replace('/api/v1', '')}${response.data.pdfUrl}`;
       const pdfResponse = await fetch(downloadUrl);
+      if (!pdfResponse.ok) {
+        throw new Error('PDF download failed');
+      }
       const pdfBlob = await pdfResponse.blob();
       const blobUrl = window.URL.createObjectURL(pdfBlob);
-      const anchor = document.createElement('a');
-      anchor.href = blobUrl;
-      anchor.download = `mycrowb-certificate-${response.data.certificateCode}.pdf`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
+
+      const pdfWindow = window.open(blobUrl, '_blank', 'noopener,noreferrer');
+
+      if (!pdfWindow) {
+        const anchor = document.createElement('a');
+        anchor.href = blobUrl;
+        anchor.download = `mycrowb-certificate-${response.data.certificateCode}.pdf`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+      }
+
       window.URL.revokeObjectURL(blobUrl);
       if (response.data.isPlaceholder) {
         setMessage(response.data.message || 'Blank certificate downloaded.');
       } else {
-        setMessage('Latest certificate downloaded.');
+        setMessage('Latest certificate opened in a new tab.');
       }
-    } catch (_err) {
-      setMessage('Unable to download certificate.');
+    } catch (err) {
+      if (err?.response?.status === 401) {
+        setMessage('Session expired or unauthorized. Please log in with a barber account and try again.');
+        return;
+      }
+      setMessage('Unable to download certificate. Please try again.');
     }
   };
 
