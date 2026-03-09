@@ -96,11 +96,35 @@ async function getMyLatestCertificate(req, res, next) {
       where: { ownerId: req.user.sub },
       include: { owner: true }
     });
-    if (!shop) return res.status(404).json({ message: 'Shop not found for barber' });
 
     const code = await createUniqueCertificateCode();
     const issueDate = new Date();
     const verifyUrl = `${appBaseUrl}/api/v1/certificates/verify/${code}`;
+
+    if (!shop) {
+      const pdfUrl = await generateCertificatePdf({
+        shopName: 'MyCrowb Registered Barber',
+        ownerName: 'Name not available',
+        ownerMobile: 'Not available',
+        address: 'Address not available',
+        city: null,
+        state: null,
+        latitude: null,
+        longitude: null,
+        certificateCode: code,
+        issueDate,
+        verifyUrl: null
+      });
+
+      return res.json({
+        certificateCode: code,
+        issueDate,
+        pdfUrl,
+        isPlaceholder: true,
+        message: 'Blank certificate generated due to unavailable barber profile data.'
+      });
+    }
+
     const pdfUrl = await generateCertificatePdf({
       shopName: shop.shopName,
       ownerName: shop.owner?.name || shop.ownerName,
