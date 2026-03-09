@@ -49,13 +49,22 @@ model BarberShop {
   id               String        @id @default(cuid())
   ownerId          String        @unique
   shopName         String
+  ownerName        String?
   roomNumber       String?
   buildingNumber   String?
+  wardNumber       String?
+  localBody        String?
   address          String
   city             String
   state            String
+  whatsappNumber   String?
+  employeeCount    Int?
+  chairCount       Int?
   latitude         Float
   longitude        Float
+  profileLocked    Boolean       @default(false)
+  editRequestPending Boolean     @default(false)
+  editApproved     Boolean       @default(false)
   registrationDate DateTime      @default(now())
   status           ShopStatus    @default(ACTIVE)
   createdAt        DateTime      @default(now())

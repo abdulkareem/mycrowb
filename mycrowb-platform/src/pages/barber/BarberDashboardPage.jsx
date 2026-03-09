@@ -3,7 +3,6 @@ import Layout from '../../components/layout/Layout';
 
 const quickActions = [
   { label: 'Collection history', to: '/barber/collections' },
-  { label: 'Receipt downloads', to: '/barber/receipts' },
   { label: 'Certificates', to: '/barber/certificates' },
   { label: 'Service rating', to: '/barber/rating' },
   { label: 'Notifications', to: '/barber/notifications' },

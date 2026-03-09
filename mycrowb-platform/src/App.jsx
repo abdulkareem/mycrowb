@@ -6,7 +6,6 @@ import CertificateVerifyPage from './pages/public/CertificateVerifyPage';
 import AboutPage from './pages/public/AboutPage';
 import BarberDashboardPage from './pages/barber/BarberDashboardPage';
 import CollectionHistoryPage from './pages/barber/CollectionHistoryPage';
-import ReceiptDownloadsPage from './pages/barber/ReceiptDownloadsPage';
 import CertificatesPage from './pages/barber/CertificatesPage';
 import ProfilePage from './pages/barber/ProfilePage';
 import ServiceRatingPage from './pages/barber/ServiceRatingPage';
@@ -35,7 +34,6 @@ export default function App() {
       <Route path="/about" element={<AboutPage />} />
       <Route path="/barber/dashboard" element={<BarberDashboardPage />} />
       <Route path="/barber/collections" element={<CollectionHistoryPage />} />
-      <Route path="/barber/receipts" element={<ReceiptDownloadsPage />} />
       <Route path="/barber/certificates" element={<CertificatesPage />} />
       <Route path="/barber/profile" element={<ProfilePage />} />
       <Route path="/barber/rating" element={<ServiceRatingPage />} />
