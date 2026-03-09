@@ -11,7 +11,16 @@ export default function CertificatesPage() {
     try {
       const response = await client.get('/certificates/my/latest');
       const downloadUrl = `${client.defaults.baseURL.replace('/api/v1', '')}${response.data.pdfUrl}`;
-      window.open(downloadUrl, '_blank', 'noopener,noreferrer');
+      const pdfResponse = await fetch(downloadUrl);
+      const pdfBlob = await pdfResponse.blob();
+      const blobUrl = window.URL.createObjectURL(pdfBlob);
+      const anchor = document.createElement('a');
+      anchor.href = blobUrl;
+      anchor.download = `mycrowb-certificate-${response.data.certificateCode}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(blobUrl);
       setMessage('Latest certificate downloaded.');
     } catch (_err) {
       setMessage('Unable to download certificate.');
