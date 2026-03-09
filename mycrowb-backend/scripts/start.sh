@@ -64,6 +64,13 @@ if is_postgres_url "$DATABASE_URL_RAW"; then
   if ! npx prisma migrate deploy; then
     echo "[startup] WARNING: Prisma migration failed. Server will still start, but DB-backed endpoints may fail until DB connectivity is fixed."
   fi
+
+  if [ ! -d "prisma/migrations" ]; then
+    echo "[startup] No prisma/migrations directory found. Syncing schema with prisma db push..."
+    if ! npx prisma db push --skip-generate; then
+      echo "[startup] WARNING: Prisma db push failed. Server will still start, but DB-backed endpoints may fail until DB schema is created."
+    fi
+  fi
 else
   echo "[startup] WARNING: DATABASE_URL is missing or invalid."
   echo "[startup] OTP request endpoint can still run with in-memory fallback, but DB-backed endpoints will fail."
