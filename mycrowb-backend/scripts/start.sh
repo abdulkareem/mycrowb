@@ -57,17 +57,18 @@ if [ -z "$DATABASE_URL_RAW" ]; then
   DATABASE_URL_RAW="$(build_database_url_from_pg_vars || true)"
 fi
 
-if ! is_postgres_url "$DATABASE_URL_RAW"; then
-  echo "[startup] Invalid DATABASE_URL. It must start with postgres:// or postgresql://."
-  echo "[startup] If you use Railway, map DATABASE_URL to a real DB URL value (not a literal placeholder like \${{Postgres.DATABASE_URL}})."
-  echo "[startup] You can also expose PGHOST, PGPORT, PGUSER, PGPASSWORD, and PGDATABASE; this script will build DATABASE_URL from them."
-  exit 1
+if is_postgres_url "$DATABASE_URL_RAW"; then
+  export DATABASE_URL="$DATABASE_URL_RAW"
+
+  echo "[startup] Running Prisma migrations..."
+  if ! npx prisma migrate deploy; then
+    echo "[startup] WARNING: Prisma migration failed. Server will still start, but DB-backed endpoints may fail until DB connectivity is fixed."
+  fi
+else
+  echo "[startup] WARNING: DATABASE_URL is missing or invalid."
+  echo "[startup] OTP request endpoint can still run with in-memory fallback, but DB-backed endpoints will fail."
+  echo "[startup] Set DATABASE_URL (postgres:// or postgresql://) or PGHOST/PGPORT/PGUSER/PGPASSWORD/PGDATABASE to enable DB features."
 fi
-
-export DATABASE_URL="$DATABASE_URL_RAW"
-
-echo "[startup] Running Prisma migrations..."
-npx prisma migrate deploy
 
 echo "[startup] Starting API server..."
 node src/server.js
