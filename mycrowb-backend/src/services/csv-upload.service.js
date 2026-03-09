@@ -31,7 +31,7 @@ async function importShops(filePath) {
         address: row.address,
         latitude: Number(row.latitude),
         longitude: Number(row.longitude),
-        city: row.city,
+        district: row.district || row.city,
         state: row.state,
         roomNumber: row.roomNumber,
         buildingNumber: row.buildingNumber
@@ -42,7 +42,7 @@ async function importShops(filePath) {
         address: row.address,
         latitude: Number(row.latitude),
         longitude: Number(row.longitude),
-        city: row.city,
+        district: row.district || row.city,
         state: row.state,
         roomNumber: row.roomNumber,
         buildingNumber: row.buildingNumber
