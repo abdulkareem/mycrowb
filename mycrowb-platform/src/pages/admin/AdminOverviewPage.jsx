@@ -6,7 +6,7 @@ const adminModules = [
   { label: 'CSV upload', to: '/admin/csv-upload' },
   { label: 'Collection management', to: '/admin/collections' },
   { label: 'Payment management', to: '/admin/payments' },
-  { label: 'Certificate issuance', to: '/admin/certificates' },
+  { label: 'Add staff', to: '/admin/certificates' },
   { label: 'Analytics dashboard', to: '/admin/analytics' },
   { label: 'Route optimization', to: '/admin/routes' },
   { label: 'Ratings dashboard', to: '/admin/ratings' }
