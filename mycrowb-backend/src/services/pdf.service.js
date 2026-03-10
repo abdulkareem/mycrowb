@@ -39,7 +39,7 @@ async function generateCertificatePdf({
     doc.moveDown().fontSize(13).text('This certifies that the below profile is a registered user of MyCrowb.', { align: 'center' });
     doc.moveDown(2);
     const location = latitude != null && longitude != null ? `${latitude}, ${longitude}` : 'Not provided';
-    const fullAddress = [address, city, state].filter(Boolean).join(', ') || 'Not provided';
+    const fullAddress = [address, district, state].filter(Boolean).join(', ') || 'Not provided';
 
     doc.fontSize(12)
       .text(`Shop Name: ${shopName || 'Community Barber Shop'}`)

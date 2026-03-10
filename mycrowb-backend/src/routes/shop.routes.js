@@ -4,6 +4,7 @@ const { upload } = require('../middleware/upload.middleware');
 const {
   uploadShopsCsv,
   listShops,
+  exportShops,
   updateShop,
   toggleShop,
   getMyShop,
@@ -14,6 +15,7 @@ const {
 
 router.post('/upload-csv', authorize('ADMIN'), upload.single('file'), uploadShopsCsv);
 router.get('/', authorize('ADMIN', 'SERVICE_STAFF'), listShops);
+router.get('/export', authorize('ADMIN'), exportShops);
 router.patch('/:id', authorize('ADMIN'), updateShop);
 router.patch('/:id/toggle', authorize('ADMIN'), toggleShop);
 router.get('/me', authorize('BARBER'), getMyShop);
