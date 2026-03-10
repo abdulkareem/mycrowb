@@ -97,11 +97,9 @@ async function getMyLatestCertificate(req, res, next) {
       include: { owner: true }
     });
 
-    const code = await createUniqueCertificateCode();
-    const issueDate = new Date();
-    const verifyUrl = `${appBaseUrl}/api/v1/certificates/verify/${code}`;
-
     if (!shop) {
+      const code = await createUniqueCertificateCode();
+      const issueDate = new Date();
       const pdfUrl = await generateCertificatePdf({
         shopName: 'MyCrowb Registered Barber',
         ownerName: 'Name not available',
@@ -125,33 +123,18 @@ async function getMyLatestCertificate(req, res, next) {
       });
     }
 
-    const pdfUrl = await generateCertificatePdf({
-      shopName: shop.shopName,
-      ownerName: shop.owner?.name || shop.ownerName,
-      ownerMobile: shop.owner?.mobile,
-      address: shop.address,
-      district: shop.district,
-      state: shop.state,
-      latitude: shop.latitude,
-      longitude: shop.longitude,
-      certificateCode: code,
-      issueDate,
-      verifyUrl
+    const latestCertificate = await prisma.certificate.findFirst({
+      where: { shopId: shop.id },
+      orderBy: { issueDate: 'desc' }
     });
 
-    const cert = await prisma.certificate.create({
-      data: {
-        shopId: shop.id,
-        certificateCode: code,
-        certificateType: 'SPECIAL',
-        issueDate,
-        validUntil: new Date(new Date(issueDate).setFullYear(issueDate.getFullYear() + 1)),
-        qrCode: verifyUrl,
-        pdfUrl
-      }
-    });
+    if (latestCertificate) {
+      return res.json(latestCertificate);
+    }
 
-    return res.json(cert);
+    return res.status(404).json({
+      message: 'No certificate has been issued for your shop yet.'
+    });
   } catch (error) {
     next(error);
   }

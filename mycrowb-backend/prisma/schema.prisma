@@ -18,6 +18,12 @@ enum ShopStatus {
   INACTIVE
 }
 
+enum ShopCategory {
+  GENTS_BARBER_SHOP_SALOON
+  LADY_BEAUTY_PARLOUR
+  MIXED_LARGE_CORPORATE
+}
+
 enum CertificateType {
   MONTHLY
   QUARTERLY
@@ -58,6 +64,8 @@ model BarberShop {
   address          String
   district         String
   registeredAssociationName String?
+  category         ShopCategory?
+  clusterName      String?
   state            String
   whatsappNumber   String?
   employeeCount    Int?
