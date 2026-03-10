@@ -5,8 +5,25 @@ const { mobileLookupVariants, normalizeMobile } = require('../utils/mobile');
 
 async function requestOtp(req, res, next) {
   try {
-    const { mobile } = req.body;
-    await sendOtp(normalizeMobile(mobile));
+    const { mobile, role } = req.body;
+    const normalizedMobile = normalizeMobile(mobile);
+
+    if (role === 'staff') {
+      const registeredStaff = await prisma.staffProfile.findFirst({
+        where: {
+          mobileNumber: {
+            in: mobileLookupVariants(normalizedMobile)
+          },
+          isActive: true
+        }
+      });
+
+      if (!registeredStaff) {
+        return res.status(404).json({ message: 'staff not registred' });
+      }
+    }
+
+    await sendOtp(normalizedMobile);
     res.json({ message: 'OTP sent successfully' });
   } catch (error) {
     next(error);
@@ -21,6 +38,7 @@ async function verifyOtpLogin(req, res, next) {
     if (!valid) return res.status(400).json({ message: 'Invalid OTP' });
 
     const notRegisteredMessage = 'You are not registered with Mycrowb Your Eco Friend LLP. If you want to register, contact 9747917623 or mycrowbee@gmail.com.';
+    const staffNotRegisteredMessage = 'staff not registred';
 
     let user;
     try {
@@ -56,8 +74,35 @@ async function verifyOtpLogin(req, res, next) {
       });
     }
 
+    if (!user && role === 'staff') {
+      const registeredStaff = await prisma.staffProfile.findFirst({
+        where: {
+          mobileNumber: {
+            in: mobileLookupVariants(normalizedMobile)
+          },
+          isActive: true
+        }
+      });
+
+      if (!registeredStaff) {
+        return res.status(404).json({ message: staffNotRegisteredMessage });
+      }
+
+      user = await prisma.user.create({
+        data: {
+          mobile: normalizedMobile,
+          name: registeredStaff.name,
+          role: 'SERVICE_STAFF'
+        }
+      });
+    }
+
     if (!user) {
       return res.status(404).json({ message: notRegisteredMessage });
+    }
+
+    if (role === 'staff' && user.role !== 'SERVICE_STAFF') {
+      return res.status(403).json({ message: 'This mobile is not authorized for staff login.' });
     }
 
     if (name && user.name !== name) {
