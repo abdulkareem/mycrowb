@@ -1,6 +1,7 @@
 const fs = require('fs');
 const { parse } = require('csv-parse');
 const prisma = require('../config/prisma');
+const { ensureShopRegistrationNumberColumn } = require('../utils/db-capabilities');
 
 function parseCsv(filePath) {
   return new Promise((resolve, reject) => {
@@ -43,6 +44,7 @@ async function createUniqueShopRegistrationNumber(state, district) {
 async function importShops(filePath) {
   const rows = await parseCsv(filePath);
   let imported = 0;
+  await ensureShopRegistrationNumberColumn();
 
   for (let index = 0; index < rows.length; index += 1) {
     const row = rows[index];
@@ -65,34 +67,27 @@ async function importShops(filePath) {
     const existingShop = await prisma.barberShop.findUnique({ where: { ownerId: user.id } });
     const shopRegistrationNumber = existingShop?.shopRegistrationNumber || await createUniqueShopRegistrationNumber(state, district);
 
+    const baseData = {
+      shopName: row.shopName,
+      address: row.address,
+      latitude: Number(row.latitude),
+      longitude: Number(row.longitude),
+      district,
+      state,
+      joinedDate: new Date(),
+      roomNumber: row.roomNumber,
+      buildingNumber: row.buildingNumber,
+      place: row.place
+    };
+
+    const data = { ...baseData, shopRegistrationNumber };
+
     await prisma.barberShop.upsert({
       where: { ownerId: user.id },
-      update: {
-        shopName: row.shopName,
-        address: row.address,
-        latitude: Number(row.latitude),
-        longitude: Number(row.longitude),
-        district,
-        state,
-        shopRegistrationNumber,
-        joinedDate: new Date(),
-        roomNumber: row.roomNumber,
-        buildingNumber: row.buildingNumber,
-        place: row.place
-      },
+      update: data,
       create: {
         ownerId: user.id,
-        shopName: row.shopName,
-        address: row.address,
-        latitude: Number(row.latitude),
-        longitude: Number(row.longitude),
-        district,
-        state,
-        shopRegistrationNumber,
-        joinedDate: new Date(),
-        roomNumber: row.roomNumber,
-        buildingNumber: row.buildingNumber,
-        place: row.place
+        ...data
       }
     });
     imported += 1;
