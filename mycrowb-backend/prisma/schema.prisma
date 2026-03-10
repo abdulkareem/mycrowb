@@ -37,6 +37,12 @@ enum CollectionStatus {
   MISSED
 }
 
+enum CollectionFrequency {
+  MONTHLY_ONCE
+  MONTHLY_TWICE
+  WEEKLY
+}
+
 model User {
   id          String      @id @default(cuid())
   mobile      String      @unique
@@ -73,6 +79,8 @@ model BarberShop {
   chairCount       Int?
   joinedDate       DateTime?
   tippingFees      Float?
+  gstPercentage    Float?        @default(18)
+  collectionFrequency CollectionFrequency @default(MONTHLY_ONCE)
   paymentPendingMonths Int?
   latitude         Float
   longitude        Float

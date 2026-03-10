@@ -9,6 +9,12 @@ const categoryLabel = {
   MIXED_LARGE_CORPORATE: 'Mixed / large / corporate'
 };
 
+const frequencyLabel = {
+  MONTHLY_ONCE: 'Monthly once',
+  MONTHLY_TWICE: 'Monthly twice',
+  WEEKLY: 'Weekly'
+};
+
 const editableFields = [
   'shopName',
   'ownerName',
@@ -30,6 +36,8 @@ const editableFields = [
   'longitude',
   'joinedDate',
   'tippingFees',
+  'gstPercentage',
+  'collectionFrequency',
   'paymentPendingMonths'
 ];
 
@@ -55,6 +63,8 @@ const headers = [
   { key: 'longitude', label: 'Longitude' },
   { key: 'joinedDate', label: 'Joined Date' },
   { key: 'tippingFees', label: 'Tipping Fees' },
+  { key: 'gstPercentage', label: 'GST %' },
+  { key: 'collectionFrequency', label: 'Collection Frequency' },
   { key: 'paymentPendingMonths', label: 'Pending Months' },
   { key: 'status', label: 'Status' }
 ];
@@ -146,6 +156,17 @@ export default function RegisteredShopsPage() {
     }
   };
 
+
+  const deleteShop = async (shop) => {
+    try {
+      await client.delete(`/shops/${shop.id}`);
+      setMessage(`Shop "${shop.shopName}" deleted successfully.`);
+      loadShops();
+    } catch (_error) {
+      setMessage('Unable to delete shop.');
+    }
+  };
+
   const downloadExcel = async () => {
     try {
       const response = await client.get('/shops/export', {
@@ -171,6 +192,7 @@ export default function RegisteredShopsPage() {
     const isEditing = editingId === shop.id;
     if (!isEditing || field === 'status') {
       if (field === 'category') return categoryLabel[shop.category] || '-';
+      if (field === 'collectionFrequency') return frequencyLabel[shop.collectionFrequency] || '-';
       if (field === 'joinedDate') return shop.joinedDate ? new Date(shop.joinedDate).toLocaleDateString() : '-';
       return shop[field] ?? '-';
     }
@@ -184,6 +206,21 @@ export default function RegisteredShopsPage() {
         >
           <option value="">-</option>
           {Object.entries(categoryLabel).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
+      );
+    }
+
+
+    if (field === 'collectionFrequency') {
+      return (
+        <select
+          className="w-36 rounded border border-gray-300 px-1 py-1"
+          value={draftRow.collectionFrequency || 'MONTHLY_ONCE'}
+          onChange={(event) => setDraftRow((prev) => ({ ...prev, collectionFrequency: event.target.value }))}
+        >
+          {Object.entries(frequencyLabel).map(([value, label]) => (
             <option key={value} value={value}>{label}</option>
           ))}
         </select>
@@ -239,7 +276,7 @@ export default function RegisteredShopsPage() {
             </thead>
             <tbody>
               {!loading && shops.map((shop) => (
-                <tr key={shop.id} className="border-b align-top">
+                <tr key={shop.id} className={`border-b align-top ${shop.paymentPendingMonths === 3 ? 'bg-red-100' : ''}`}>
                   {headers.map((header) => (
                     <td key={`${shop.id}-${header.key}`} className="p-2">{renderCell(shop, header.key)}</td>
                   ))}
@@ -259,6 +296,9 @@ export default function RegisteredShopsPage() {
                       </button>
                       <button className="rounded-md border border-red-400 px-2 py-1 text-xs text-red-600" onClick={() => cancelCertificate(shop.id)} type="button">
                         Cancel certificate
+                      </button>
+                      <button className="rounded-md bg-red-600 px-2 py-1 text-xs text-white" onClick={() => deleteShop(shop)} type="button">
+                        Delete
                       </button>
                     </div>
                   </td>

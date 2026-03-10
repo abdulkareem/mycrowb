@@ -38,6 +38,8 @@ async function listShops(req, res, next) {
       'status',
       'joinedDate',
       'tippingFees',
+      'gstPercentage',
+      'collectionFrequency',
       'paymentPendingMonths'
     ];
 
@@ -107,6 +109,8 @@ async function exportShops(req, res, next) {
       Status: shop.status,
       'Joined Date': shop.joinedDate ? new Date(shop.joinedDate).toISOString().slice(0, 10) : '',
       'Tipping Fees': shop.tippingFees ?? '',
+      'GST Percentage': shop.gstPercentage ?? '',
+      'Collection Frequency': shop.collectionFrequency ?? '',
       'Payment Pending Months': shop.paymentPendingMonths ?? '',
       'Certificate Code': shop.certificates[0]?.certificateCode || ''
     }));
@@ -129,7 +133,7 @@ async function updateShop(req, res, next) {
     const allowedFields = [
       'shopName', 'ownerName', 'category', 'clusterName', 'roomNumber', 'buildingNumber', 'wardNumber',
       'localBody', 'place', 'address', 'district', 'registeredAssociationName', 'state', 'whatsappNumber',
-      'employeeCount', 'chairCount', 'latitude', 'longitude', 'joinedDate', 'tippingFees', 'paymentPendingMonths'
+      'employeeCount', 'chairCount', 'latitude', 'longitude', 'joinedDate', 'tippingFees', 'gstPercentage', 'collectionFrequency', 'paymentPendingMonths'
     ];
 
     const data = {};
@@ -145,7 +149,7 @@ async function updateShop(req, res, next) {
       }
     });
 
-    ['latitude', 'longitude', 'tippingFees'].forEach((field) => {
+    ['latitude', 'longitude', 'tippingFees', 'gstPercentage'].forEach((field) => {
       if (data[field] !== undefined && data[field] !== null && data[field] !== '') {
         data[field] = Number(data[field]);
       }
@@ -169,6 +173,33 @@ async function toggleShop(req, res, next) {
       data: { status: req.body.active ? 'ACTIVE' : 'INACTIVE' }
     });
     res.json(shop);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function deleteShop(req, res, next) {
+  try {
+    await prisma.$transaction(async (tx) => {
+      const collections = await tx.collection.findMany({
+        where: { shopId: req.params.id },
+        select: { id: true }
+      });
+
+      if (collections.length) {
+        await tx.receipt.deleteMany({
+          where: { collectionId: { in: collections.map((item) => item.id) } }
+        });
+      }
+
+      await tx.collection.deleteMany({ where: { shopId: req.params.id } });
+      await tx.certificate.deleteMany({ where: { shopId: req.params.id } });
+      await tx.rating.deleteMany({ where: { shopId: req.params.id } });
+      await tx.prediction.deleteMany({ where: { shopId: req.params.id } });
+      await tx.barberShop.delete({ where: { id: req.params.id } });
+    });
+
+    res.json({ message: 'Shop deleted successfully' });
   } catch (error) {
     next(error);
   }
@@ -321,6 +352,7 @@ module.exports = {
   exportShops,
   updateShop,
   toggleShop,
+  deleteShop,
   getMyShop,
   updateMyShopProfile,
   requestProfileEdit,
