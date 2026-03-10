@@ -35,6 +35,7 @@ export default function OtpPage() {
       });
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
+      if (response.data.sessionId) localStorage.setItem('sessionId', response.data.sessionId);
       navigate(dashboardPath);
     } catch (error) {
       setMessage(error.response?.data?.message || 'OTP verification failed.');
@@ -65,7 +66,6 @@ export default function OtpPage() {
           </button>
         </form>
 
-        <p className="mt-3 text-xs text-gray-500">Demo mode: use the OTP received in SMS or server logs.</p>
         {message && <p className="mt-2 text-sm text-red-600">{message}</p>}
         <Link to="/login" className="mt-4 inline-block text-sm font-medium text-primaryGreen">
           ← Change WhatsApp number/role

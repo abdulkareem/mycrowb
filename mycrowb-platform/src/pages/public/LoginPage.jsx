@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
 import client from '../../api/client';
@@ -19,8 +19,34 @@ export default function LoginPage() {
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [role, setRole] = useState(defaultRole);
   const [message, setMessage] = useState('');
+  const [adminEligibility, setAdminEligibility] = useState({ checked: false, authorized: false, isSuperAdmin: false });
 
   const selectedRole = useMemo(() => roles.find((item) => item.key === role), [role]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function checkAdmin() {
+      if (role !== 'admin' || !whatsappNumber.trim()) {
+        if (active) setAdminEligibility({ checked: false, authorized: false, isSuperAdmin: false });
+        return;
+      }
+
+      try {
+        const response = await client.get('/auth/admin-eligibility', { params: { mobile: whatsappNumber } });
+        if (active) {
+          setAdminEligibility({ checked: true, authorized: response.data.authorized, isSuperAdmin: response.data.isSuperAdmin });
+        }
+      } catch (_error) {
+        if (active) setAdminEligibility({ checked: true, authorized: false, isSuperAdmin: false });
+      }
+    }
+
+    checkAdmin();
+    return () => {
+      active = false;
+    };
+  }, [role, whatsappNumber]);
 
   const requestOtp = async (event) => {
     event.preventDefault();
@@ -35,13 +61,15 @@ export default function LoginPage() {
         state: {
           whatsappNumber,
           role: selectedRole.key,
-          dashboard: selectedRole.dashboard
+          dashboard: role === 'admin' && adminEligibility.isSuperAdmin ? '/super-admin/overview' : selectedRole.dashboard
         }
       });
     } catch (error) {
       setMessage(error.response?.data?.message || 'Unable to request OTP.');
     }
   };
+
+  const disableAdminOtp = role === 'admin' && adminEligibility.checked && !adminEligibility.authorized;
 
   return (
     <Layout title="Login with WhatsApp OTP">
@@ -70,11 +98,12 @@ export default function LoginPage() {
             />
           </label>
 
-          <button className="rounded-md bg-primaryGreen p-2 text-white hover:bg-leafGreen" type="submit">
+          <button className="rounded-md bg-primaryGreen p-2 text-white hover:bg-leafGreen disabled:cursor-not-allowed disabled:bg-gray-400" type="submit" disabled={disableAdminOtp}>
             Request OTP on WhatsApp
           </button>
         </form>
 
+        {disableAdminOtp && <p className="mt-2 text-xs text-red-600">This number is not in the authorized admin list.</p>}
         <p className="mt-3 text-xs text-gray-500">OTP is sent only for registered WhatsApp numbers for the selected role.</p>
         {message && <p className="mt-2 text-sm text-red-600">{message}</p>}
         <Link to="/" className="mt-4 inline-block text-sm font-medium text-primaryGreen">

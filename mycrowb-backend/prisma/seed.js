@@ -1,16 +1,37 @@
 const prisma = require('../src/config/prisma');
+const { normalizeMobile } = require('../src/utils/mobile');
 
-async function ensureAdmin({ mobile, name, department }) {
+async function ensureAdmin({ mobile, name, department, isSuperAdmin = false }) {
+  const normalizedMobile = normalizeMobile(mobile);
+  const role = isSuperAdmin ? 'SUPER_ADMIN' : 'ADMIN';
+
   const user = await prisma.user.upsert({
-    where: { mobile },
-    update: { name, role: 'ADMIN' },
-    create: { mobile, name, role: 'ADMIN' }
+    where: { mobile: normalizedMobile },
+    update: { name, role },
+    create: { mobile: normalizedMobile, name, role }
   });
 
-  await prisma.admin.upsert({
-    where: { userId: user.id },
-    update: { department },
-    create: { userId: user.id, department }
+  if (!isSuperAdmin) {
+    await prisma.admin.upsert({
+      where: { userId: user.id },
+      update: { department },
+      create: { userId: user.id, department }
+    });
+  }
+
+  await prisma.authorizedAdminNumber.upsert({
+    where: { mobile: normalizedMobile },
+    update: {
+      isActive: true,
+      isSuperAdmin,
+      createdBy: 'seed'
+    },
+    create: {
+      mobile: normalizedMobile,
+      isActive: true,
+      isSuperAdmin,
+      createdBy: 'seed'
+    }
   });
 }
 
@@ -23,8 +44,9 @@ async function main() {
 
   await ensureAdmin({
     mobile: '9747917623',
-    name: 'Abdul Kareem T',
-    department: 'Operations'
+    name: 'Super Admin',
+    department: 'Operations',
+    isSuperAdmin: true
   });
 }
 

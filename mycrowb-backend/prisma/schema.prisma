@@ -10,6 +10,7 @@ datasource db {
 enum UserRole {
   BARBER
   ADMIN
+  SUPER_ADMIN
   SERVICE_STAFF
 }
 
@@ -55,6 +56,31 @@ model User {
   staff       ServiceStaff?
   collections Collection[] @relation("CollectorCollections")
   ratings     Rating[]    @relation("CollectorRatings")
+  loginActivities LoginActivity[]
+}
+
+model AuthorizedAdminNumber {
+  id            String   @id @default(cuid())
+  mobile        String   @unique
+  isSuperAdmin  Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  createdBy     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model LoginActivity {
+  id         String    @id @default(cuid())
+  userId     String?
+  mobile     String
+  role       UserRole
+  loginAt    DateTime  @default(now())
+  logoutAt   DateTime?
+  createdAt  DateTime  @default(now())
+  user       User?     @relation(fields: [userId], references: [id])
+
+  @@index([mobile, loginAt])
+  @@index([role, loginAt])
 }
 
 model BarberShop {
