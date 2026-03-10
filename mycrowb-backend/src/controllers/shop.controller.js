@@ -12,7 +12,29 @@ async function uploadShopsCsv(req, res, next) {
 
 async function listShops(req, res, next) {
   try {
-    const shops = await prisma.barberShop.findMany({ include: { owner: true } });
+    const sortField = req.query.sortField;
+    const sortOrder = req.query.sortOrder === 'desc' ? 'desc' : 'asc';
+    const sortableFields = [
+      'shopName',
+      'ownerName',
+      'category',
+      'clusterName',
+      'place',
+      'district',
+      'state',
+      'status',
+      'registeredAssociationName',
+      'localBody'
+    ];
+
+    const orderBy = sortableFields.includes(sortField)
+      ? { [sortField]: sortOrder }
+      : { shopName: 'asc' };
+
+    const shops = await prisma.barberShop.findMany({
+      include: { owner: true },
+      orderBy
+    });
     res.json(shops);
   } catch (error) {
     next(error);
@@ -73,6 +95,8 @@ async function updateMyShopProfile(req, res, next) {
       'address',
       'district',
       'registeredAssociationName',
+      'category',
+      'clusterName',
       'state',
       'latitude',
       'longitude',
@@ -96,6 +120,8 @@ async function updateMyShopProfile(req, res, next) {
       address: req.body.address,
       district: req.body.district,
       registeredAssociationName: req.body.registeredAssociationName,
+      category: req.body.category,
+      clusterName: req.body.clusterName,
       state: req.body.state,
       latitude: req.body.latitude === undefined ? undefined : Number(req.body.latitude),
       longitude: req.body.longitude === undefined ? undefined : Number(req.body.longitude),
@@ -124,6 +150,8 @@ async function updateMyShopProfile(req, res, next) {
         address: req.body.address || '',
         district: req.body.district || '',
         registeredAssociationName: req.body.registeredAssociationName || null,
+        category: req.body.category || null,
+        clusterName: req.body.clusterName || null,
         state: req.body.state || ''
       }
     });

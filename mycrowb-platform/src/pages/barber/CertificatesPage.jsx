@@ -40,6 +40,10 @@ export default function CertificatesPage() {
         setMessage('Session expired or unauthorized. Please log in with a barber account and try again.');
         return;
       }
+      if (err?.response?.status === 404) {
+        setMessage(err.response.data?.message || 'No certificate has been issued yet.');
+        return;
+      }
       setMessage('Unable to download certificate. Please try again.');
     }
   };
