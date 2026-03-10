@@ -15,6 +15,7 @@ export default function RouteOptimizationPage() {
   const [clusterByStaffId, setClusterByStaffId] = useState({});
   const [dateByStaffId, setDateByStaffId] = useState({});
   const [selectedMapCluster, setSelectedMapCluster] = useState('');
+  const [selectedMapStaffKey, setSelectedMapStaffKey] = useState('');
   const [sentAssignmentsByStaffId, setSentAssignmentsByStaffId] = useState({});
   const [message, setMessage] = useState('');
 
@@ -56,7 +57,7 @@ export default function RouteOptimizationPage() {
       .map((name) => name.trim())
       .filter(Boolean);
     return [...new Set([...fromShops, ...fromStaff])].sort((a, b) => a.localeCompare(b));
-  }, [shops, activeStaffList]);
+  }, [shops, staffList]);
 
   const mapShops = useMemo(() => {
     if (!selectedMapCluster) return [];
@@ -72,9 +73,19 @@ export default function RouteOptimizationPage() {
       }));
   }, [selectedMapCluster, shops]);
 
+  const getStaffKey = (staff) => staff.staffIdNumber || staff.id;
+
+  const handleClusterChange = (staff, cluster) => {
+    const staffKey = getStaffKey(staff);
+    setClusterByStaffId((prev) => ({ ...prev, [staffKey]: cluster }));
+    setSelectedMapStaffKey(staffKey);
+    setSelectedMapCluster(cluster);
+  };
+
   const handleSendToStaff = (staff) => {
-    const selectedCluster = clusterByStaffId[staff.id] || '';
-    const selectedDate = dateByStaffId[staff.id] || '';
+    const staffKey = getStaffKey(staff);
+    const selectedCluster = clusterByStaffId[staffKey] || '';
+    const selectedDate = dateByStaffId[staffKey] || '';
 
     if (!selectedCluster || !selectedDate) {
       setMessage(`Please select cluster and date for ${staff.name}.`);
@@ -148,6 +159,7 @@ export default function RouteOptimizationPage() {
                   .split(',')
                   .map((name) => name.trim())
                   .filter(Boolean);
+                const staffKey = getStaffKey(staff);
                 const clusterOptions = staffClusters.length ? staffClusters : allClusters;
                 const isRouteSent = Boolean(sentAssignmentsByStaffId[staff.staffIdNumber]);
 
@@ -159,8 +171,8 @@ export default function RouteOptimizationPage() {
                     <td className="p-2">
                       <select
                         className="w-full rounded-md border border-gray-300 px-2 py-1"
-                        onChange={(event) => setClusterByStaffId((prev) => ({ ...prev, [staff.id]: event.target.value }))}
-                        value={clusterByStaffId[staff.id] || ''}
+                        onChange={(event) => handleClusterChange(staff, event.target.value)}
+                        value={clusterByStaffId[staffKey] || ''}
                       >
                         <option value="">Select cluster</option>
                         {clusterOptions.map((cluster) => (
@@ -171,9 +183,9 @@ export default function RouteOptimizationPage() {
                     <td className="p-2">
                       <input
                         className="w-full rounded-md border border-gray-300 px-2 py-1"
-                        onChange={(event) => setDateByStaffId((prev) => ({ ...prev, [staff.id]: event.target.value }))}
+                        onChange={(event) => setDateByStaffId((prev) => ({ ...prev, [staffKey]: event.target.value }))}
                         type="date"
-                        value={dateByStaffId[staff.id] || ''}
+                        value={dateByStaffId[staffKey] || ''}
                       />
                     </td>
                     <td className="p-2">
@@ -199,21 +211,12 @@ export default function RouteOptimizationPage() {
 
         <div className="mt-6">
           <h2 className="mb-2 text-base font-semibold text-gray-800">Shop positions map</h2>
-          <p className="mb-3 text-sm text-gray-600">Only the selected cluster shops are plotted using saved longitude and latitude coordinates.</p>
-          <div className="mb-3 max-w-xs">
-            <select
-              className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
-              onChange={(event) => setSelectedMapCluster(event.target.value)}
-              value={selectedMapCluster}
-            >
-              <option value="">Select cluster to view map</option>
-              {allClusters.map((cluster) => (
-                <option key={cluster} value={cluster}>{cluster}</option>
-              ))}
-            </select>
-          </div>
+          <p className="mb-3 text-sm text-gray-600">Map updates from the cluster selected in each staff row.</p>
+          {!!selectedMapStaffKey && !!selectedMapCluster && (
+            <p className="mb-3 text-xs text-gray-500">Showing cluster: <span className="font-medium text-gray-700">{selectedMapCluster}</span></p>
+          )}
           {!!mapShops.length && <ShopMap shops={mapShops} />}
-          {!selectedMapCluster && <p className="rounded-md bg-gray-50 p-3 text-sm text-gray-500">Select a cluster to view shop coordinates on the map.</p>}
+          {!selectedMapCluster && <p className="rounded-md bg-gray-50 p-3 text-sm text-gray-500">Select a cluster in a staff row to view shop coordinates on the map.</p>}
           {!!selectedMapCluster && !mapShops.length && <p className="rounded-md bg-gray-50 p-3 text-sm text-gray-500">No shops with coordinates are available for the selected cluster.</p>}
         </div>
       </section>
