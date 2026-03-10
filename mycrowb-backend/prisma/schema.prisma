@@ -63,6 +63,7 @@ model BarberShop {
   place            String?
   address          String
   district         String
+  shopRegistrationNumber String? @unique
   registeredAssociationName String?
   category         ShopCategory?
   clusterName      String?
