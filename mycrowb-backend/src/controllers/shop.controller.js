@@ -1,3 +1,4 @@
+const XLSX = require('xlsx');
 const prisma = require('../config/prisma');
 const { importShops } = require('../services/csv-upload.service');
 
@@ -19,12 +20,24 @@ async function listShops(req, res, next) {
       'ownerName',
       'category',
       'clusterName',
+      'roomNumber',
+      'buildingNumber',
+      'wardNumber',
+      'localBody',
       'place',
+      'address',
       'district',
-      'state',
-      'status',
       'registeredAssociationName',
-      'localBody'
+      'state',
+      'whatsappNumber',
+      'employeeCount',
+      'chairCount',
+      'latitude',
+      'longitude',
+      'status',
+      'joinedDate',
+      'tippingFees',
+      'paymentPendingMonths'
     ];
 
     const orderBy = sortableFields.includes(sortField)
@@ -32,7 +45,13 @@ async function listShops(req, res, next) {
       : { shopName: 'asc' };
 
     const shops = await prisma.barberShop.findMany({
-      include: { owner: true },
+      include: {
+        owner: true,
+        certificates: {
+          orderBy: { issueDate: 'desc' },
+          take: 1
+        }
+      },
       orderBy
     });
     res.json(shops);
@@ -41,9 +60,100 @@ async function listShops(req, res, next) {
   }
 }
 
+async function exportShops(req, res, next) {
+  try {
+    const where = {};
+
+    if (req.query.clusterName) where.clusterName = req.query.clusterName;
+    if (req.query.place) where.place = req.query.place;
+    if (req.query.localBody) where.localBody = req.query.localBody;
+    if (req.query.status && ['ACTIVE', 'INACTIVE'].includes(req.query.status)) {
+      where.status = req.query.status;
+    }
+
+    const shops = await prisma.barberShop.findMany({
+      where,
+      include: {
+        owner: true,
+        certificates: {
+          orderBy: { issueDate: 'desc' },
+          take: 1
+        }
+      },
+      orderBy: { shopName: 'asc' }
+    });
+
+    const rows = shops.map((shop) => ({
+      'Shop Name': shop.shopName,
+      'Owner Name': shop.ownerName || shop.owner?.name || '',
+      Category: shop.category || '',
+      'Cluster Name': shop.clusterName || '',
+      'Room No': shop.roomNumber || '',
+      'Building No': shop.buildingNumber || '',
+      'Ward No': shop.wardNumber || '',
+      'Local Body': shop.localBody || '',
+      Place: shop.place || '',
+      Address: shop.address || '',
+      District: shop.district || '',
+      Association: shop.registeredAssociationName || '',
+      State: shop.state || '',
+      WhatsApp: shop.whatsappNumber || '',
+      Employees: shop.employeeCount ?? '',
+      Chairs: shop.chairCount ?? '',
+      Latitude: shop.latitude ?? '',
+      Longitude: shop.longitude ?? '',
+      Status: shop.status,
+      'Joined Date': shop.joinedDate ? new Date(shop.joinedDate).toISOString().slice(0, 10) : '',
+      'Tipping Fees': shop.tippingFees ?? '',
+      'Payment Pending Months': shop.paymentPendingMonths ?? '',
+      'Certificate Code': shop.certificates[0]?.certificateCode || ''
+    }));
+
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Registered Shops');
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="registered-shops.xlsx"');
+    res.send(buffer);
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function updateShop(req, res, next) {
   try {
-    const shop = await prisma.barberShop.update({ where: { id: req.params.id }, data: req.body });
+    const allowedFields = [
+      'shopName', 'ownerName', 'category', 'clusterName', 'roomNumber', 'buildingNumber', 'wardNumber',
+      'localBody', 'place', 'address', 'district', 'registeredAssociationName', 'state', 'whatsappNumber',
+      'employeeCount', 'chairCount', 'latitude', 'longitude', 'joinedDate', 'tippingFees', 'paymentPendingMonths'
+    ];
+
+    const data = {};
+    allowedFields.forEach((field) => {
+      if (Object.prototype.hasOwnProperty.call(req.body, field)) {
+        data[field] = req.body[field];
+      }
+    });
+
+    ['employeeCount', 'chairCount', 'paymentPendingMonths'].forEach((field) => {
+      if (data[field] !== undefined && data[field] !== null && data[field] !== '') {
+        data[field] = Number(data[field]);
+      }
+    });
+
+    ['latitude', 'longitude', 'tippingFees'].forEach((field) => {
+      if (data[field] !== undefined && data[field] !== null && data[field] !== '') {
+        data[field] = Number(data[field]);
+      }
+    });
+
+    if (data.joinedDate) {
+      data.joinedDate = new Date(data.joinedDate);
+    }
+
+    const shop = await prisma.barberShop.update({ where: { id: req.params.id }, data });
     res.json(shop);
   } catch (error) {
     next(error);
@@ -206,6 +316,7 @@ async function setProfileEditApproval(req, res, next) {
 module.exports = {
   uploadShopsCsv,
   listShops,
+  exportShops,
   updateShop,
   toggleShop,
   getMyShop,

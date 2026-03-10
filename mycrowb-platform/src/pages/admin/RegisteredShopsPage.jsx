@@ -1,8 +1,15 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import client from '../../api/client';
 import Layout from '../../components/layout/Layout';
 
-const sortOptions = [
+const categoryLabel = {
+  GENTS_BARBER_SHOP_SALOON: 'Gents barber shop / saloon',
+  LADY_BEAUTY_PARLOUR: 'Lady beauty parlour',
+  MIXED_LARGE_CORPORATE: 'Mixed / large / corporate'
+};
+
+const editableFields = [
   'shopName',
   'ownerName',
   'category',
@@ -21,19 +28,44 @@ const sortOptions = [
   'chairCount',
   'latitude',
   'longitude',
-  'status'
+  'joinedDate',
+  'tippingFees',
+  'paymentPendingMonths'
 ];
 
-const categoryLabel = {
-  GENTS_BARBER_SHOP_SALOON: 'Gents barber shop / saloon',
-  LADY_BEAUTY_PARLOUR: 'Lady beauty parlour',
-  MIXED_LARGE_CORPORATE: 'Mixed / large / corporate'
-};
+const headers = [
+  { key: 'shopName', label: 'Shop Name' },
+  { key: 'ownerName', label: 'Owner Name' },
+  { key: 'category', label: 'Category' },
+  { key: 'clusterName', label: 'Cluster Name' },
+  { key: 'roomNumber', label: 'Room No' },
+  { key: 'buildingNumber', label: 'Building No' },
+  { key: 'wardNumber', label: 'Ward No' },
+  { key: 'localBody', label: 'Local Body' },
+  { key: 'place', label: 'Place' },
+  { key: 'address', label: 'Address' },
+  { key: 'district', label: 'District' },
+  { key: 'registeredAssociationName', label: 'Association' },
+  { key: 'state', label: 'State' },
+  { key: 'whatsappNumber', label: 'WhatsApp' },
+  { key: 'employeeCount', label: 'Employees' },
+  { key: 'chairCount', label: 'Chairs' },
+  { key: 'latitude', label: 'Latitude' },
+  { key: 'longitude', label: 'Longitude' },
+  { key: 'joinedDate', label: 'Joined Date' },
+  { key: 'tippingFees', label: 'Tipping Fees' },
+  { key: 'paymentPendingMonths', label: 'Pending Months' },
+  { key: 'status', label: 'Status' }
+];
 
 export default function RegisteredShopsPage() {
+  const navigate = useNavigate();
   const [shops, setShops] = useState([]);
   const [sortField, setSortField] = useState('shopName');
   const [sortOrder, setSortOrder] = useState('asc');
+  const [editingId, setEditingId] = useState(null);
+  const [draftRow, setDraftRow] = useState({});
+  const [exportFilters, setExportFilters] = useState({ clusterName: '', place: '', localBody: '', status: '' });
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -53,6 +85,11 @@ export default function RegisteredShopsPage() {
     loadShops();
   }, [sortField, sortOrder]);
 
+  const handleSort = (field, order) => {
+    setSortField(field);
+    setSortOrder(order);
+  };
+
   const toggleStatus = async (shop) => {
     try {
       await client.patch(`/shops/${shop.id}/toggle`, { active: shop.status !== 'ACTIVE' });
@@ -65,11 +102,102 @@ export default function RegisteredShopsPage() {
 
   const issueCertificate = async (shopId) => {
     try {
-      await client.post('/certificates', { shopId, certificateType: 'SPECIAL' });
-      setMessage('Certificate issued successfully. Shop owner can download it from dashboard.');
+      const response = await client.post('/certificates', { shopId, certificateType: 'SPECIAL' });
+      setMessage(`Certificate issued successfully. Code: ${response.data.certificateCode}`);
+      loadShops();
     } catch (_error) {
       setMessage('Unable to issue certificate.');
     }
+  };
+
+  const cancelCertificate = async (shopId) => {
+    try {
+      const response = await client.delete(`/certificates/shop/${shopId}`);
+      setMessage(`Certificate cancelled successfully. Deleted code: ${response.data.deletedCertificateCode}`);
+      loadShops();
+    } catch (_error) {
+      setMessage('Unable to cancel certificate.');
+    }
+  };
+
+  const startEdit = (shop) => {
+    setEditingId(shop.id);
+    setDraftRow({
+      ...shop,
+      joinedDate: shop.joinedDate ? shop.joinedDate.slice(0, 10) : ''
+    });
+  };
+
+  const saveEdit = async (shopId) => {
+    const payload = {};
+    editableFields.forEach((field) => {
+      payload[field] = draftRow[field] ?? null;
+    });
+
+    try {
+      await client.patch(`/shops/${shopId}`, payload);
+      setMessage('Shop details saved successfully.');
+      setEditingId(null);
+      setDraftRow({});
+      loadShops();
+    } catch (_error) {
+      setMessage('Unable to save shop details.');
+    }
+  };
+
+  const downloadExcel = async () => {
+    try {
+      const response = await client.get('/shops/export', {
+        params: exportFilters,
+        responseType: 'blob'
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'registered-shops.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setMessage('Export downloaded successfully.');
+    } catch (_error) {
+      setMessage('Unable to download export.');
+    }
+  };
+
+  const renderCell = (shop, field) => {
+    const isEditing = editingId === shop.id;
+    if (!isEditing || field === 'status') {
+      if (field === 'category') return categoryLabel[shop.category] || '-';
+      if (field === 'joinedDate') return shop.joinedDate ? new Date(shop.joinedDate).toLocaleDateString() : '-';
+      return shop[field] ?? '-';
+    }
+
+    if (field === 'category') {
+      return (
+        <select
+          className="w-36 rounded border border-gray-300 px-1 py-1"
+          value={draftRow.category || ''}
+          onChange={(event) => setDraftRow((prev) => ({ ...prev, category: event.target.value || null }))}
+        >
+          <option value="">-</option>
+          {Object.entries(categoryLabel).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
+      );
+    }
+
+    const type = field === 'joinedDate' ? 'date' : 'text';
+    return (
+      <input
+        type={type}
+        value={draftRow[field] ?? ''}
+        onChange={(event) => setDraftRow((prev) => ({ ...prev, [field]: event.target.value }))}
+        className="w-36 rounded border border-gray-300 px-1 py-1"
+      />
+    );
   };
 
   return (
@@ -77,17 +205,16 @@ export default function RegisteredShopsPage() {
       <section className="rounded-xl bg-white p-6 shadow-sm">
         <p className="text-gray-700">Manage shop data, activation status, and certificate issuance.</p>
 
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <label className="text-sm text-gray-600" htmlFor="sortField">Sort field</label>
-          <select id="sortField" className="rounded-md border border-gray-300 px-2 py-1" value={sortField} onChange={(event) => setSortField(event.target.value)}>
-            {sortOptions.map((option) => (
-              <option key={option} value={option}>{option}</option>
-            ))}
+        <div className="mt-4 grid gap-2 rounded-lg border border-gray-200 p-3 md:grid-cols-5">
+          <input className="rounded-md border border-gray-300 px-2 py-1" placeholder="Cluster" value={exportFilters.clusterName} onChange={(event) => setExportFilters((prev) => ({ ...prev, clusterName: event.target.value }))} />
+          <input className="rounded-md border border-gray-300 px-2 py-1" placeholder="Place" value={exportFilters.place} onChange={(event) => setExportFilters((prev) => ({ ...prev, place: event.target.value }))} />
+          <input className="rounded-md border border-gray-300 px-2 py-1" placeholder="Local body" value={exportFilters.localBody} onChange={(event) => setExportFilters((prev) => ({ ...prev, localBody: event.target.value }))} />
+          <select className="rounded-md border border-gray-300 px-2 py-1" value={exportFilters.status} onChange={(event) => setExportFilters((prev) => ({ ...prev, status: event.target.value }))}>
+            <option value="">All statuses</option>
+            <option value="ACTIVE">Active</option>
+            <option value="INACTIVE">Inactive</option>
           </select>
-          <select className="rounded-md border border-gray-300 px-2 py-1" value={sortOrder} onChange={(event) => setSortOrder(event.target.value)}>
-            <option value="asc">A → Z</option>
-            <option value="desc">Z → A</option>
-          </select>
+          <button className="rounded-md bg-primaryGreen px-2 py-1 text-white" onClick={downloadExcel} type="button">Download Excel</button>
         </div>
 
         {message && <p className="mt-3 text-sm text-gray-700">{message}</p>}
@@ -96,57 +223,41 @@ export default function RegisteredShopsPage() {
           <table className="min-w-full border-collapse text-left text-sm">
             <thead>
               <tr className="border-b bg-gray-50 text-xs uppercase text-gray-600">
-                <th className="p-2">Shop Name</th>
-                <th className="p-2">Owner Name</th>
-                <th className="p-2">Category</th>
-                <th className="p-2">Cluster Name</th>
-                <th className="p-2">Room No</th>
-                <th className="p-2">Building No</th>
-                <th className="p-2">Ward No</th>
-                <th className="p-2">Local Body</th>
-                <th className="p-2">Place</th>
-                <th className="p-2">Address</th>
-                <th className="p-2">District</th>
-                <th className="p-2">Association</th>
-                <th className="p-2">State</th>
-                <th className="p-2">WhatsApp</th>
-                <th className="p-2">Employees</th>
-                <th className="p-2">Chairs</th>
-                <th className="p-2">Latitude</th>
-                <th className="p-2">Longitude</th>
-                <th className="p-2">Status</th>
+                {headers.map((header) => (
+                  <th key={header.key} className="p-2">
+                    <div className="flex items-center gap-1 whitespace-nowrap">
+                      <span>{header.label}</span>
+                      <button type="button" className="text-gray-500" onClick={() => handleSort(header.key, 'asc')}>↑</button>
+                      <button type="button" className="text-gray-500" onClick={() => handleSort(header.key, 'desc')}>↓</button>
+                    </div>
+                  </th>
+                ))}
+                <th className="p-2">Certificate</th>
                 <th className="p-2">Actions</th>
               </tr>
             </thead>
             <tbody>
               {!loading && shops.map((shop) => (
                 <tr key={shop.id} className="border-b align-top">
-                  <td className="p-2">{shop.shopName}</td>
-                  <td className="p-2">{shop.ownerName || shop.owner?.name || '-'}</td>
-                  <td className="p-2">{categoryLabel[shop.category] || '-'}</td>
-                  <td className="p-2">{shop.clusterName || '-'}</td>
-                  <td className="p-2">{shop.roomNumber || '-'}</td>
-                  <td className="p-2">{shop.buildingNumber || '-'}</td>
-                  <td className="p-2">{shop.wardNumber || '-'}</td>
-                  <td className="p-2">{shop.localBody || '-'}</td>
-                  <td className="p-2">{shop.place || '-'}</td>
-                  <td className="p-2">{shop.address || '-'}</td>
-                  <td className="p-2">{shop.district || '-'}</td>
-                  <td className="p-2">{shop.registeredAssociationName || '-'}</td>
-                  <td className="p-2">{shop.state || '-'}</td>
-                  <td className="p-2">{shop.whatsappNumber || '-'}</td>
-                  <td className="p-2">{shop.employeeCount ?? '-'}</td>
-                  <td className="p-2">{shop.chairCount ?? '-'}</td>
-                  <td className="p-2">{shop.latitude ?? '-'}</td>
-                  <td className="p-2">{shop.longitude ?? '-'}</td>
-                  <td className="p-2">{shop.status}</td>
+                  {headers.map((header) => (
+                    <td key={`${shop.id}-${header.key}`} className="p-2">{renderCell(shop, header.key)}</td>
+                  ))}
+                  <td className="p-2">{shop.certificates?.[0]?.certificateCode || '-'}</td>
                   <td className="p-2">
                     <div className="flex flex-col gap-2">
                       <button className="rounded-md border border-primaryGreen px-2 py-1 text-xs text-primaryGreen" onClick={() => toggleStatus(shop)} type="button">
                         {shop.status === 'ACTIVE' ? 'Inactivate' : 'Activate'}
                       </button>
+                      {editingId === shop.id ? (
+                        <button className="rounded-md bg-primaryGreen px-2 py-1 text-xs text-white" onClick={() => saveEdit(shop.id)} type="button">Save</button>
+                      ) : (
+                        <button className="rounded-md border border-gray-400 px-2 py-1 text-xs text-gray-700" onClick={() => startEdit(shop)} type="button">Edit</button>
+                      )}
                       <button className="rounded-md bg-primaryGreen px-2 py-1 text-xs text-white" onClick={() => issueCertificate(shop.id)} type="button">
                         Issue certificate
+                      </button>
+                      <button className="rounded-md border border-red-400 px-2 py-1 text-xs text-red-600" onClick={() => cancelCertificate(shop.id)} type="button">
+                        Cancel certificate
                       </button>
                     </div>
                   </td>
@@ -156,6 +267,12 @@ export default function RegisteredShopsPage() {
           </table>
           {loading && <p className="p-3 text-sm text-gray-600">Loading shops...</p>}
           {!loading && !shops.length && <p className="p-3 text-sm text-gray-600">No shops found.</p>}
+        </div>
+
+        <div className="mt-6">
+          <button type="button" onClick={() => navigate(-1)} className="rounded-md border border-gray-400 px-3 py-2 text-sm text-gray-700">
+            Back
+          </button>
         </div>
       </section>
     </Layout>
