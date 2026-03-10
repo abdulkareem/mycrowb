@@ -16,6 +16,21 @@ async function findAuthorizedAdminNumber(normalizedMobile) {
   return activeAdmins.find((admin) => normalizeMobile(admin.mobile) === normalizedMobile) || null;
 }
 
+async function findExistingAdminUser(normalizedMobile) {
+  if (!normalizedMobile) return null;
+
+  return prisma.user.findFirst({
+    where: {
+      mobile: {
+        in: mobileLookupVariants(normalizedMobile)
+      },
+      role: {
+        in: ['ADMIN', 'SUPER_ADMIN']
+      }
+    }
+  });
+}
+
 async function requestOtp(req, res, next) {
   try {
     const { mobile, whatsappNumber, role } = req.body;
@@ -53,7 +68,9 @@ async function requestOtp(req, res, next) {
 
     if (role === 'admin') {
       const authorizedAdmin = await findAuthorizedAdminNumber(normalizedMobile);
-      if (!authorizedAdmin) {
+      const existingAdminUser = await findExistingAdminUser(normalizedMobile);
+
+      if (!authorizedAdmin && !existingAdminUser) {
         return res.status(404).json({ message: notRegisteredMessage });
       }
     }
@@ -95,22 +112,17 @@ async function verifyOtpLogin(req, res, next) {
 
     if (role === 'admin') {
       const authorizedAdmin = await findAuthorizedAdminNumber(normalizedMobile);
-      if (!authorizedAdmin) {
+      const existingAdminUser = await findExistingAdminUser(normalizedMobile);
+
+      if (!authorizedAdmin && !existingAdminUser) {
         return res.status(403).json({ message: 'This WhatsApp number is not authorized for admin login.' });
       }
 
-      user = await prisma.user.findFirst({
-        where: {
-          mobile: {
-            in: mobileLookupVariants(normalizedMobile)
-          },
-          role: {
-            in: ['ADMIN', 'SUPER_ADMIN']
-          }
-        }
-      });
+      user = existingAdminUser;
 
-      const nextRole = authorizedAdmin.isSuperAdmin ? 'SUPER_ADMIN' : 'ADMIN';
+      const nextRole = authorizedAdmin
+        ? (authorizedAdmin.isSuperAdmin ? 'SUPER_ADMIN' : 'ADMIN')
+        : existingAdminUser.role;
 
       if (!user) {
         user = await prisma.user.create({
@@ -241,9 +253,11 @@ async function checkAdminEligibility(req, res, next) {
     }
 
     const authorizedAdmin = await findAuthorizedAdminNumber(normalizedMobile);
+    const existingAdminUser = await findExistingAdminUser(normalizedMobile);
     res.json({
-      authorized: Boolean(authorizedAdmin),
+      authorized: Boolean(authorizedAdmin || existingAdminUser),
       isSuperAdmin: Boolean(authorizedAdmin?.isSuperAdmin)
+        || existingAdminUser?.role === 'SUPER_ADMIN'
     });
   } catch (error) {
     next(error);
