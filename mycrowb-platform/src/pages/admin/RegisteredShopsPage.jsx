@@ -42,26 +42,26 @@ const editableFields = [
 ];
 
 const headers = [
+  { key: 'shopRegistrationNumber', label: 'Shop Registration Number' },
   { key: 'shopName', label: 'Shop Name' },
   { key: 'ownerName', label: 'Owner Name' },
   { key: 'category', label: 'Category' },
+  { key: 'whatsappNumber', label: 'WhatsApp' },
   { key: 'clusterName', label: 'Cluster Name' },
+  { key: 'place', label: 'Place' },
   { key: 'roomNumber', label: 'Room No' },
   { key: 'buildingNumber', label: 'Building No' },
   { key: 'wardNumber', label: 'Ward No' },
   { key: 'localBody', label: 'Local Body' },
-  { key: 'place', label: 'Place' },
-  { key: 'address', label: 'Address' },
   { key: 'district', label: 'District' },
-  { key: 'shopRegistrationNumber', label: 'Shop Registration Number' },
-  { key: 'registeredAssociationName', label: 'Association' },
   { key: 'state', label: 'State' },
-  { key: 'whatsappNumber', label: 'WhatsApp' },
-  { key: 'employeeCount', label: 'Employees' },
-  { key: 'chairCount', label: 'Chairs' },
+  { key: 'address', label: 'Address' },
+  { key: 'registeredAssociationName', label: 'Association' },
   { key: 'latitude', label: 'Latitude' },
   { key: 'longitude', label: 'Longitude' },
   { key: 'joinedDate', label: 'Joined Date' },
+  { key: 'employeeCount', label: 'Employees' },
+  { key: 'chairCount', label: 'Chairs' },
   { key: 'tippingFees', label: 'Tipping Fees' },
   { key: 'gstPercentage', label: 'GST %' },
   { key: 'collectionFrequency', label: 'Collection Frequency' },
@@ -77,13 +77,14 @@ export default function RegisteredShopsPage() {
   const [editingId, setEditingId] = useState(null);
   const [draftRow, setDraftRow] = useState({});
   const [exportFilters, setExportFilters] = useState({ clusterName: '', place: '', localBody: '', status: '' });
+  const [appliedFilters, setAppliedFilters] = useState({ clusterName: '', place: '', localBody: '', status: '' });
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const loadShops = async () => {
+  const loadShops = async (filters = appliedFilters) => {
     setLoading(true);
     try {
-      const response = await client.get('/shops', { params: { sortField, sortOrder } });
+      const response = await client.get('/shops', { params: { sortField, sortOrder, ...filters } });
       setShops(response.data || []);
     } catch (_error) {
       setMessage('Unable to load registered shops.');
@@ -93,8 +94,8 @@ export default function RegisteredShopsPage() {
   };
 
   useEffect(() => {
-    loadShops();
-  }, [sortField, sortOrder]);
+    loadShops(appliedFilters);
+  }, [sortField, sortOrder, appliedFilters]);
 
   const handleSort = (field, order) => {
     setSortField(field);
@@ -188,9 +189,13 @@ export default function RegisteredShopsPage() {
     }
   };
 
+  const filterList = () => {
+    setAppliedFilters({ ...exportFilters });
+  };
+
   const renderCell = (shop, field) => {
     const isEditing = editingId === shop.id;
-    if (!isEditing || field === 'status') {
+    if (!isEditing || field === 'status' || !editableFields.includes(field)) {
       if (field === 'category') return categoryLabel[shop.category] || '-';
       if (field === 'collectionFrequency') return frequencyLabel[shop.collectionFrequency] || '-';
       if (field === 'joinedDate') return shop.joinedDate ? new Date(shop.joinedDate).toLocaleDateString() : '-';
@@ -243,7 +248,7 @@ export default function RegisteredShopsPage() {
       <section className="rounded-xl bg-white p-6 shadow-sm">
         <p className="text-gray-700">Manage shop data, activation status, and certificate issuance.</p>
 
-        <div className="mt-4 grid gap-2 rounded-lg border border-gray-200 p-3 md:grid-cols-5">
+        <div className="mt-4 grid gap-2 rounded-lg border border-gray-200 p-3 md:grid-cols-6">
           <input className="rounded-md border border-gray-300 px-2 py-1" placeholder="Cluster" value={exportFilters.clusterName} onChange={(event) => setExportFilters((prev) => ({ ...prev, clusterName: event.target.value }))} />
           <input className="rounded-md border border-gray-300 px-2 py-1" placeholder="Place" value={exportFilters.place} onChange={(event) => setExportFilters((prev) => ({ ...prev, place: event.target.value }))} />
           <input className="rounded-md border border-gray-300 px-2 py-1" placeholder="Local body" value={exportFilters.localBody} onChange={(event) => setExportFilters((prev) => ({ ...prev, localBody: event.target.value }))} />
@@ -252,6 +257,7 @@ export default function RegisteredShopsPage() {
             <option value="ACTIVE">Active</option>
             <option value="INACTIVE">Inactive</option>
           </select>
+          <button className="rounded-md border border-primaryGreen px-2 py-1 text-primaryGreen" onClick={filterList} type="button">Filter List</button>
           <button className="rounded-md bg-primaryGreen px-2 py-1 text-white" onClick={downloadExcel} type="button">Download Excel</button>
         </div>
 
