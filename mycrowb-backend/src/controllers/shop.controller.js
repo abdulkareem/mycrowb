@@ -1,6 +1,7 @@
 const XLSX = require('xlsx');
 const prisma = require('../config/prisma');
 const { importShops } = require('../services/csv-upload.service');
+const { ensureShopRegistrationNumberColumn } = require('../utils/db-capabilities');
 
 async function uploadShopsCsv(req, res, next) {
   try {
@@ -13,6 +14,7 @@ async function uploadShopsCsv(req, res, next) {
 
 async function listShops(req, res, next) {
   try {
+    await ensureShopRegistrationNumberColumn();
     const sortField = req.query.sortField;
     const sortOrder = req.query.sortOrder === 'desc' ? 'desc' : 'asc';
     const sortableFields = [
@@ -65,6 +67,7 @@ async function listShops(req, res, next) {
 
 async function exportShops(req, res, next) {
   try {
+    await ensureShopRegistrationNumberColumn();
     const where = {};
 
     if (req.query.clusterName) where.clusterName = req.query.clusterName;
@@ -130,6 +133,7 @@ async function exportShops(req, res, next) {
 
 async function updateShop(req, res, next) {
   try {
+    await ensureShopRegistrationNumberColumn();
     const allowedFields = [
       'shopName', 'ownerName', 'category', 'clusterName', 'roomNumber', 'buildingNumber', 'wardNumber',
       'localBody', 'place', 'address', 'district', 'registeredAssociationName', 'state', 'whatsappNumber',
@@ -168,6 +172,7 @@ async function updateShop(req, res, next) {
 
 async function toggleShop(req, res, next) {
   try {
+    await ensureShopRegistrationNumberColumn();
     const shop = await prisma.barberShop.update({
       where: { id: req.params.id },
       data: { status: req.body.active ? 'ACTIVE' : 'INACTIVE' }
@@ -180,6 +185,7 @@ async function toggleShop(req, res, next) {
 
 async function deleteShop(req, res, next) {
   try {
+    await ensureShopRegistrationNumberColumn();
     await prisma.$transaction(async (tx) => {
       const collections = await tx.collection.findMany({
         where: { shopId: req.params.id },
@@ -207,6 +213,7 @@ async function deleteShop(req, res, next) {
 
 async function getMyShop(req, res, next) {
   try {
+    await ensureShopRegistrationNumberColumn();
     const shop = await prisma.barberShop.findUnique({
       where: { ownerId: req.user.sub },
       include: { owner: true }
@@ -220,6 +227,7 @@ async function getMyShop(req, res, next) {
 
 async function updateMyShopProfile(req, res, next) {
   try {
+    await ensureShopRegistrationNumberColumn();
     const existingShop = await prisma.barberShop.findUnique({ where: { ownerId: req.user.sub } });
 
     if (existingShop?.profileLocked && !existingShop.editApproved) {
