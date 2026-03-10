@@ -80,6 +80,9 @@ export default function RegisteredShopsPage() {
   const [appliedFilters, setAppliedFilters] = useState({ clusterName: '', place: '', localBody: '', status: '' });
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [filterOptions, setFilterOptions] = useState({ clusterNames: [], places: [], localBodies: [] });
+
+  const uniqueSorted = (values) => [...new Set(values.filter(Boolean).map((value) => value.trim()))].sort((a, b) => a.localeCompare(b));
 
   const loadShops = async (filters = appliedFilters) => {
     setLoading(true);
@@ -93,9 +96,32 @@ export default function RegisteredShopsPage() {
     }
   };
 
+  const loadFilterOptions = async () => {
+    try {
+      const response = await client.get('/shops', {
+        params: {
+          sortField: 'shopName',
+          sortOrder: 'asc'
+        }
+      });
+      const shopsList = response.data || [];
+      setFilterOptions({
+        clusterNames: uniqueSorted(shopsList.map((shop) => shop.clusterName)),
+        places: uniqueSorted(shopsList.map((shop) => shop.place)),
+        localBodies: uniqueSorted(shopsList.map((shop) => shop.localBody))
+      });
+    } catch (_error) {
+      setFilterOptions({ clusterNames: [], places: [], localBodies: [] });
+    }
+  };
+
   useEffect(() => {
     loadShops(appliedFilters);
   }, [sortField, sortOrder, appliedFilters]);
+
+  useEffect(() => {
+    loadFilterOptions();
+  }, []);
 
   const handleSort = (field, order) => {
     setSortField(field);
@@ -249,9 +275,24 @@ export default function RegisteredShopsPage() {
         <p className="text-gray-700">Manage shop data, activation status, and certificate issuance.</p>
 
         <div className="mt-4 grid gap-2 rounded-lg border border-gray-200 p-3 md:grid-cols-6">
-          <input className="rounded-md border border-gray-300 px-2 py-1" placeholder="Cluster" value={exportFilters.clusterName} onChange={(event) => setExportFilters((prev) => ({ ...prev, clusterName: event.target.value }))} />
-          <input className="rounded-md border border-gray-300 px-2 py-1" placeholder="Place" value={exportFilters.place} onChange={(event) => setExportFilters((prev) => ({ ...prev, place: event.target.value }))} />
-          <input className="rounded-md border border-gray-300 px-2 py-1" placeholder="Local body" value={exportFilters.localBody} onChange={(event) => setExportFilters((prev) => ({ ...prev, localBody: event.target.value }))} />
+          <input list="cluster-options" className="rounded-md border border-gray-300 px-2 py-1" placeholder="Cluster" value={exportFilters.clusterName} onChange={(event) => setExportFilters((prev) => ({ ...prev, clusterName: event.target.value }))} />
+          <datalist id="cluster-options">
+            {filterOptions.clusterNames.map((cluster) => (
+              <option key={cluster} value={cluster} />
+            ))}
+          </datalist>
+          <input list="place-options" className="rounded-md border border-gray-300 px-2 py-1" placeholder="Place" value={exportFilters.place} onChange={(event) => setExportFilters((prev) => ({ ...prev, place: event.target.value }))} />
+          <datalist id="place-options">
+            {filterOptions.places.map((place) => (
+              <option key={place} value={place} />
+            ))}
+          </datalist>
+          <input list="local-body-options" className="rounded-md border border-gray-300 px-2 py-1" placeholder="Local body" value={exportFilters.localBody} onChange={(event) => setExportFilters((prev) => ({ ...prev, localBody: event.target.value }))} />
+          <datalist id="local-body-options">
+            {filterOptions.localBodies.map((localBody) => (
+              <option key={localBody} value={localBody} />
+            ))}
+          </datalist>
           <select className="rounded-md border border-gray-300 px-2 py-1" value={exportFilters.status} onChange={(event) => setExportFilters((prev) => ({ ...prev, status: event.target.value }))}>
             <option value="">All statuses</option>
             <option value="ACTIVE">Active</option>
