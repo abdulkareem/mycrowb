@@ -14,7 +14,22 @@ export default function RouteOptimizationPage() {
   const [shops, setShops] = useState([]);
   const [clusterByStaffId, setClusterByStaffId] = useState({});
   const [dateByStaffId, setDateByStaffId] = useState({});
+  const [selectedMapCluster, setSelectedMapCluster] = useState('');
+  const [sentAssignmentsByStaffId, setSentAssignmentsByStaffId] = useState({});
   const [message, setMessage] = useState('');
+
+  const activeStaffList = useMemo(() => staffList.filter((staff) => staff.isActive), [staffList]);
+
+  const refreshSentAssignments = () => {
+    const assignments = JSON.parse(localStorage.getItem(STAFF_ASSIGNMENT_KEY) || '{}');
+    const byStaffId = Object.values(assignments).reduce((acc, assignment) => {
+      if (assignment.staffIdNumber) {
+        acc[assignment.staffIdNumber] = assignment;
+      }
+      return acc;
+    }, {});
+    setSentAssignmentsByStaffId(byStaffId);
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -25,6 +40,7 @@ export default function RouteOptimizationPage() {
         ]);
         setStaffList(staffResponse.data || []);
         setShops(shopResponse.data || []);
+        refreshSentAssignments();
       } catch (_error) {
         setMessage('Unable to load staff or shop data for route allocation.');
       }
@@ -40,17 +56,21 @@ export default function RouteOptimizationPage() {
       .map((name) => name.trim())
       .filter(Boolean);
     return [...new Set([...fromShops, ...fromStaff])].sort((a, b) => a.localeCompare(b));
-  }, [shops, staffList]);
+  }, [shops, activeStaffList]);
 
-  const mapShops = useMemo(() => shops
-    .filter((shop) => Number.isFinite(Number(shop.latitude)) && Number.isFinite(Number(shop.longitude)))
-    .map((shop) => ({
-      id: shop.id,
-      shopName: shop.shopName,
-      latitude: Number(shop.latitude),
-      longitude: Number(shop.longitude),
-      status: 'pending'
-    })), [shops]);
+  const mapShops = useMemo(() => {
+    if (!selectedMapCluster) return [];
+    return shops
+      .filter((shop) => normalizeCluster(shop.clusterName) === normalizeCluster(selectedMapCluster))
+      .filter((shop) => Number.isFinite(Number(shop.latitude)) && Number.isFinite(Number(shop.longitude)))
+      .map((shop) => ({
+        id: shop.id,
+        shopName: shop.shopName,
+        latitude: Number(shop.latitude),
+        longitude: Number(shop.longitude),
+        status: 'pending'
+      }));
+  }, [selectedMapCluster, shops]);
 
   const handleSendToStaff = (staff) => {
     const selectedCluster = clusterByStaffId[staff.id] || '';
@@ -66,6 +86,7 @@ export default function RouteOptimizationPage() {
     assignments[staff.staffIdNumber] = {
       staffIdNumber: staff.staffIdNumber,
       staffName: staff.name,
+      staffMobileNumber: staff.mobileNumber,
       vehicleNumber: staff.vehicleNumber,
       clusterName: selectedCluster,
       date: selectedDate,
@@ -79,6 +100,7 @@ export default function RouteOptimizationPage() {
       sentAt: new Date().toISOString()
     };
     localStorage.setItem(STAFF_ASSIGNMENT_KEY, JSON.stringify(assignments));
+    refreshSentAssignments();
 
     const notifications = JSON.parse(localStorage.getItem(BARBER_NOTIFICATION_KEY) || '[]');
     const nextNotifications = [
@@ -121,12 +143,13 @@ export default function RouteOptimizationPage() {
               </tr>
             </thead>
             <tbody>
-              {staffList.map((staff) => {
+              {activeStaffList.map((staff) => {
                 const staffClusters = String(staff.clustersAllotted || '')
                   .split(',')
                   .map((name) => name.trim())
                   .filter(Boolean);
                 const clusterOptions = staffClusters.length ? staffClusters : allClusters;
+                const isRouteSent = Boolean(sentAssignmentsByStaffId[staff.staffIdNumber]);
 
                 return (
                   <tr className="border-b border-gray-200" key={staff.id}>
@@ -159,15 +182,15 @@ export default function RouteOptimizationPage() {
                         onClick={() => handleSendToStaff(staff)}
                         type="button"
                       >
-                        Send to staff
+                        {isRouteSent ? 'Route already sent, change route' : 'Send to staff'}
                       </button>
                     </td>
                   </tr>
                 );
               })}
-              {!staffList.length && (
+              {!activeStaffList.length && (
                 <tr>
-                  <td className="p-4 text-center text-gray-500" colSpan="6">No staff records available.</td>
+                  <td className="p-4 text-center text-gray-500" colSpan="6">No active staff records available.</td>
                 </tr>
               )}
             </tbody>
@@ -176,9 +199,22 @@ export default function RouteOptimizationPage() {
 
         <div className="mt-6">
           <h2 className="mb-2 text-base font-semibold text-gray-800">Shop positions map</h2>
-          <p className="mb-3 text-sm text-gray-600">Shops are plotted using saved longitude and latitude coordinates.</p>
+          <p className="mb-3 text-sm text-gray-600">Only the selected cluster shops are plotted using saved longitude and latitude coordinates.</p>
+          <div className="mb-3 max-w-xs">
+            <select
+              className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+              onChange={(event) => setSelectedMapCluster(event.target.value)}
+              value={selectedMapCluster}
+            >
+              <option value="">Select cluster to view map</option>
+              {allClusters.map((cluster) => (
+                <option key={cluster} value={cluster}>{cluster}</option>
+              ))}
+            </select>
+          </div>
           {!!mapShops.length && <ShopMap shops={mapShops} />}
-          {!mapShops.length && <p className="rounded-md bg-gray-50 p-3 text-sm text-gray-500">No shops with coordinates are available for map display.</p>}
+          {!selectedMapCluster && <p className="rounded-md bg-gray-50 p-3 text-sm text-gray-500">Select a cluster to view shop coordinates on the map.</p>}
+          {!!selectedMapCluster && !mapShops.length && <p className="rounded-md bg-gray-50 p-3 text-sm text-gray-500">No shops with coordinates are available for the selected cluster.</p>}
         </div>
       </section>
     </Layout>
