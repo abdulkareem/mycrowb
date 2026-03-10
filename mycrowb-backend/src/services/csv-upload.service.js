@@ -48,7 +48,7 @@ async function importShops(filePath) {
 
   for (let index = 0; index < rows.length; index += 1) {
     const row = rows[index];
-    const requiredFields = ['mobile', 'ownerName'];
+    const requiredFields = ['ownerName', 'whatsappNumber', 'shopName'];
     const missingField = requiredFields.find((field) => !validateRequiredCsvField(row, field));
     if (missingField) {
       const error = new Error(`Row ${index + 2}: ${missingField} is required`);
@@ -56,10 +56,12 @@ async function importShops(filePath) {
       throw error;
     }
 
+    const whatsappNumber = `${row.whatsappNumber}`.trim();
+
     const user = await prisma.user.upsert({
-      where: { mobile: row.mobile },
+      where: { mobile: whatsappNumber },
       update: { name: row.ownerName },
-      create: { mobile: row.mobile, name: row.ownerName, role: 'BARBER' }
+      create: { mobile: whatsappNumber, name: row.ownerName, role: 'BARBER' }
     });
 
     const district = row.district || row.city || '';
@@ -69,11 +71,13 @@ async function importShops(filePath) {
 
     const baseData = {
       shopName: row.shopName,
-      address: row.address,
-      latitude: Number(row.latitude),
-      longitude: Number(row.longitude),
-      district,
-      state,
+      ownerName: row.ownerName,
+      whatsappNumber,
+      address: row.address || '',
+      latitude: validateRequiredCsvField(row, 'latitude') ? Number(row.latitude) : 0,
+      longitude: validateRequiredCsvField(row, 'longitude') ? Number(row.longitude) : 0,
+      district: district || '',
+      state: state || '',
       joinedDate: new Date(),
       roomNumber: row.roomNumber,
       buildingNumber: row.buildingNumber,
