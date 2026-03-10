@@ -16,9 +16,75 @@ async function monthlySummary(req, res, next) {
   }
 }
 
+function monthKey(year, month) {
+  return `${year}-${String(month).padStart(2, '0')}`;
+}
+
 async function trends(_req, res, next) {
   try {
-    const analytics = await prisma.analytics.findMany({ orderBy: [{ year: 'asc' }, { month: 'asc' }] });
+    const [collections, certificates] = await Promise.all([
+      prisma.collection.findMany({
+        where: { collected: true },
+        select: { month: true, year: true, amount: true, hairWeight: true, shopId: true }
+      }),
+      prisma.certificate.findMany({
+        select: { issueDate: true }
+      })
+    ]);
+
+    const monthlyMap = new Map();
+
+    collections.forEach((collection) => {
+      const key = monthKey(collection.year, collection.month);
+      if (!monthlyMap.has(key)) {
+        monthlyMap.set(key, {
+          year: collection.year,
+          month: collection.month,
+          totalHairCollected: 0,
+          revenue: 0,
+          certificatesIssued: 0,
+          activeShopIds: new Set()
+        });
+      }
+
+      const current = monthlyMap.get(key);
+      current.totalHairCollected += collection.hairWeight;
+      current.revenue += collection.amount;
+      current.activeShopIds.add(collection.shopId);
+    });
+
+    certificates.forEach((certificate) => {
+      const issueDate = new Date(certificate.issueDate);
+      const month = issueDate.getUTCMonth() + 1;
+      const year = issueDate.getUTCFullYear();
+      const key = monthKey(year, month);
+
+      if (!monthlyMap.has(key)) {
+        monthlyMap.set(key, {
+          year,
+          month,
+          totalHairCollected: 0,
+          revenue: 0,
+          certificatesIssued: 0,
+          activeShopIds: new Set()
+        });
+      }
+
+      const current = monthlyMap.get(key);
+      current.certificatesIssued += 1;
+    });
+
+    const analytics = Array.from(monthlyMap.values())
+      .sort((a, b) => (a.year - b.year) || (a.month - b.month))
+      .map((entry) => ({
+        year: entry.year,
+        month: entry.month,
+        totalHairCollected: Number(entry.totalHairCollected.toFixed(2)),
+        revenue: Number(entry.revenue.toFixed(2)),
+        activeShops: entry.activeShopIds.size,
+        certificatesIssued: entry.certificatesIssued
+      }));
+
     res.json(analytics);
   } catch (error) {
     next(error);
