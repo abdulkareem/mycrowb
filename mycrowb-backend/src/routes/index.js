@@ -9,5 +9,6 @@ router.use('/routing', require('./routing.routes'));
 router.use('/ratings', require('./rating.routes'));
 router.use('/predictions', require('./prediction.routes'));
 router.use('/staff', require('./staff.routes'));
+router.use('/super-admin', require('./super-admin.routes'));
 
 module.exports = router;

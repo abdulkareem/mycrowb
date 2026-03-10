@@ -23,6 +23,10 @@ import CertificateIssuancePage from './pages/admin/CertificateIssuancePage';
 import AnalyticsDashboardPage from './pages/admin/AnalyticsDashboardPage';
 import RouteOptimizationPage from './pages/admin/RouteOptimizationPage';
 import RatingsDashboardPage from './pages/admin/RatingsDashboardPage';
+import RequireRole from './components/auth/RequireRole';
+import SuperAdminOverviewPage from './pages/admin/SuperAdminOverviewPage';
+import AdminNumbersPage from './pages/admin/AdminNumbersPage';
+import LoginActivitiesPage from './pages/admin/LoginActivitiesPage';
 
 export default function App() {
   return (
@@ -32,26 +36,29 @@ export default function App() {
       <Route path="/otp" element={<OtpPage />} />
       <Route path="/verify-certificate" element={<CertificateVerifyPage />} />
       <Route path="/about" element={<AboutPage />} />
-      <Route path="/barber/dashboard" element={<BarberDashboardPage />} />
-      <Route path="/barber/collections" element={<CollectionHistoryPage />} />
-      <Route path="/barber/certificates" element={<CertificatesPage />} />
-      <Route path="/barber/profile" element={<ProfilePage />} />
-      <Route path="/barber/rating" element={<ServiceRatingPage />} />
-      <Route path="/barber/notifications" element={<NotificationsPage />} />
-      <Route path="/staff/today-route" element={<TodayRoutePage />} />
-      <Route path="/staff/shop-map" element={<ShopMapViewPage />} />
-      <Route path="/staff/collection-confirm" element={<CollectionConfirmPage />} />
-      <Route path="/staff/payment-confirm" element={<PaymentConfirmPage />} />
-      <Route path="/admin/overview" element={<AdminOverviewPage />} />
-      <Route path="/admin/shops" element={<RegisteredShopsPage />} />
-      <Route path="/admin/csv-upload" element={<CsvUploadPage />} />
-      <Route path="/admin/collections" element={<CollectionManagementPage />} />
-      <Route path="/admin/payments" element={<PaymentManagementPage />} />
-      <Route path="/admin/staff" element={<CertificateIssuancePage />} />
-      <Route path="/admin/certificates" element={<CertificateIssuancePage />} />
-      <Route path="/admin/analytics" element={<AnalyticsDashboardPage />} />
-      <Route path="/admin/routes" element={<RouteOptimizationPage />} />
-      <Route path="/admin/ratings" element={<RatingsDashboardPage />} />
+      <Route path="/barber/dashboard" element={<RequireRole roles={['BARBER']}><BarberDashboardPage /></RequireRole>} />
+      <Route path="/barber/collections" element={<RequireRole roles={['BARBER']}><CollectionHistoryPage /></RequireRole>} />
+      <Route path="/barber/certificates" element={<RequireRole roles={['BARBER']}><CertificatesPage /></RequireRole>} />
+      <Route path="/barber/profile" element={<RequireRole roles={['BARBER']}><ProfilePage /></RequireRole>} />
+      <Route path="/barber/rating" element={<RequireRole roles={['BARBER']}><ServiceRatingPage /></RequireRole>} />
+      <Route path="/barber/notifications" element={<RequireRole roles={['BARBER']}><NotificationsPage /></RequireRole>} />
+      <Route path="/staff/today-route" element={<RequireRole roles={['SERVICE_STAFF']}><TodayRoutePage /></RequireRole>} />
+      <Route path="/staff/shop-map" element={<RequireRole roles={['SERVICE_STAFF']}><ShopMapViewPage /></RequireRole>} />
+      <Route path="/staff/collection-confirm" element={<RequireRole roles={['SERVICE_STAFF']}><CollectionConfirmPage /></RequireRole>} />
+      <Route path="/staff/payment-confirm" element={<RequireRole roles={['SERVICE_STAFF']}><PaymentConfirmPage /></RequireRole>} />
+      <Route path="/admin/overview" element={<RequireRole roles={['ADMIN', 'SUPER_ADMIN']}><AdminOverviewPage /></RequireRole>} />
+      <Route path="/admin/shops" element={<RequireRole roles={['ADMIN', 'SUPER_ADMIN']}><RegisteredShopsPage /></RequireRole>} />
+      <Route path="/admin/csv-upload" element={<RequireRole roles={['ADMIN', 'SUPER_ADMIN']}><CsvUploadPage /></RequireRole>} />
+      <Route path="/admin/collections" element={<RequireRole roles={['ADMIN', 'SUPER_ADMIN']}><CollectionManagementPage /></RequireRole>} />
+      <Route path="/admin/payments" element={<RequireRole roles={['ADMIN', 'SUPER_ADMIN']}><PaymentManagementPage /></RequireRole>} />
+      <Route path="/admin/staff" element={<RequireRole roles={['ADMIN', 'SUPER_ADMIN']}><CertificateIssuancePage /></RequireRole>} />
+      <Route path="/admin/certificates" element={<RequireRole roles={['ADMIN', 'SUPER_ADMIN']}><CertificateIssuancePage /></RequireRole>} />
+      <Route path="/admin/analytics" element={<RequireRole roles={['ADMIN', 'SUPER_ADMIN']}><AnalyticsDashboardPage /></RequireRole>} />
+      <Route path="/admin/routes" element={<RequireRole roles={['ADMIN', 'SUPER_ADMIN']}><RouteOptimizationPage /></RequireRole>} />
+      <Route path="/admin/ratings" element={<RequireRole roles={['ADMIN', 'SUPER_ADMIN']}><RatingsDashboardPage /></RequireRole>} />
+      <Route path="/super-admin/overview" element={<RequireRole roles={['SUPER_ADMIN']}><SuperAdminOverviewPage /></RequireRole>} />
+      <Route path="/super-admin/admin-numbers" element={<RequireRole roles={['SUPER_ADMIN']}><AdminNumbersPage /></RequireRole>} />
+      <Route path="/super-admin/login-activities" element={<RequireRole roles={['SUPER_ADMIN']}><LoginActivitiesPage /></RequireRole>} />
     </Routes>
   );
 }
