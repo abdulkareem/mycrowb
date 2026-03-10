@@ -2,7 +2,14 @@ const path = require('path');
 const QRCode = require('qrcode');
 const { createPdf } = require('../utils/pdf');
 
-async function generateReceiptPdf({ receiptNumber, amount, paymentDate, shopName }) {
+async function generateReceiptPdf({
+  receiptNumber,
+  amount,
+  paymentDate,
+  shopName,
+  collectorName,
+  collectorMobile
+}) {
   const filepath = path.join('uploads', 'receipts', `${receiptNumber}.pdf`);
   await createPdf(filepath, (doc) => {
     doc.fontSize(20).text('MYCROWB YOUR ECO FRIEND LLP', { align: 'center' });
@@ -12,7 +19,9 @@ async function generateReceiptPdf({ receiptNumber, amount, paymentDate, shopName
       .text(`Receipt Number: ${receiptNumber}`)
       .text(`Shop Name: ${shopName}`)
       .text(`Amount: ₹${amount.toFixed(2)}`)
-      .text(`Payment Date: ${new Date(paymentDate).toDateString()}`);
+      .text(`Payment Date: ${new Date(paymentDate).toDateString()}`)
+      .text(`Collection Staff: ${collectorName || 'Not assigned'}`)
+      .text(`Staff Mobile: ${collectorMobile || 'Not available'}`);
   });
   return `/${filepath}`;
 }
