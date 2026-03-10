@@ -8,5 +8,6 @@ router.use('/analytics', require('./analytics.routes'));
 router.use('/routing', require('./routing.routes'));
 router.use('/ratings', require('./rating.routes'));
 router.use('/predictions', require('./prediction.routes'));
+router.use('/staff', require('./staff.routes'));
 
 module.exports = router;

@@ -201,3 +201,22 @@ model Prediction {
 
   @@index([shopId, generatedAt])
 }
+
+
+model StaffProfile {
+  id                String   @id @default(cuid())
+  photoUrl          String
+  name              String
+  address           String
+  whatsappNumber    String
+  mobileNumber      String
+  aadhaarNumber     String   @unique
+  vehicleNumber     String
+  clustersAllotted  String
+  staffIdNumber     String   @unique
+  commissionPerShop Float
+  salaryPerMonth    Float
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
