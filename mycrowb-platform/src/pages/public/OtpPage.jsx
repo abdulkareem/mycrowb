@@ -29,7 +29,7 @@ export default function OtpPage() {
 
     try {
       const response = await client.post('/auth/verify-otp', {
-        mobile: state?.mobile,
+        whatsappNumber: state?.whatsappNumber,
         code: otp,
         role: state?.role
       });
@@ -45,7 +45,7 @@ export default function OtpPage() {
     <Layout title="OTP Verification">
       <section className="max-w-lg rounded-xl bg-white p-6 shadow-sm">
         <p className="text-sm text-gray-600">
-          Mobile: <span className="font-medium text-gray-800">{state?.mobile ?? 'Not provided'}</span>
+          WhatsApp: <span className="font-medium text-gray-800">{state?.whatsappNumber ?? 'Not provided'}</span>
         </p>
         <p className="text-sm text-gray-600">
           Role: <span className="font-medium text-gray-800">{roleLabel}</span>
@@ -68,7 +68,7 @@ export default function OtpPage() {
         <p className="mt-3 text-xs text-gray-500">Demo mode: use the OTP received in SMS or server logs.</p>
         {message && <p className="mt-2 text-sm text-red-600">{message}</p>}
         <Link to="/login" className="mt-4 inline-block text-sm font-medium text-primaryGreen">
-          ← Change mobile/role
+          ← Change WhatsApp number/role
         </Link>
       </section>
     </Layout>

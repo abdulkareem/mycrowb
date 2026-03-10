@@ -16,7 +16,7 @@ export default function LoginPage() {
   const roleFromQuery = searchParams.get('role');
   const defaultRole = roles.some((role) => role.key === roleFromQuery) ? roleFromQuery : 'barber';
 
-  const [mobile, setMobile] = useState('');
+  const [whatsappNumber, setWhatsappNumber] = useState('');
   const [role, setRole] = useState(defaultRole);
   const [message, setMessage] = useState('');
 
@@ -25,15 +25,15 @@ export default function LoginPage() {
   const requestOtp = async (event) => {
     event.preventDefault();
     setMessage('');
-    if (!mobile.trim() || !selectedRole) {
+    if (!whatsappNumber.trim() || !selectedRole) {
       return;
     }
 
     try {
-      await client.post('/auth/request-otp', { mobile, role: selectedRole.key });
+      await client.post('/auth/request-otp', { whatsappNumber, role: selectedRole.key });
       navigate('/otp', {
         state: {
-          mobile,
+          whatsappNumber,
           role: selectedRole.key,
           dashboard: selectedRole.dashboard
         }
@@ -44,9 +44,9 @@ export default function LoginPage() {
   };
 
   return (
-    <Layout title="Login with mobile OTP">
+    <Layout title="Login with WhatsApp OTP">
       <section className="max-w-lg rounded-xl bg-white p-6 shadow-sm">
-        <p className="text-sm text-gray-600">Select your role and continue using mobile OTP verification.</p>
+        <p className="text-sm text-gray-600">Select your role and continue using WhatsApp OTP verification.</p>
         <form className="mt-4 grid gap-4" onSubmit={requestOtp}>
           <label className="grid gap-1 text-sm font-medium text-gray-700">
             Role
@@ -60,12 +60,12 @@ export default function LoginPage() {
           </label>
 
           <label className="grid gap-1 text-sm font-medium text-gray-700">
-            Mobile number
+            WhatsApp number
             <input
-              value={mobile}
-              onChange={(event) => setMobile(event.target.value)}
+              value={whatsappNumber}
+              onChange={(event) => setWhatsappNumber(event.target.value)}
               className="rounded-md border border-gray-300 p-2"
-              placeholder="Enter any mobile number"
+              placeholder="Enter your WhatsApp number"
               required
             />
           </label>
@@ -75,7 +75,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-3 text-xs text-gray-500">Demo mode: barber/admin accepts any registered mobile; staff requires admin-registered staff mobile.</p>
+        <p className="mt-3 text-xs text-gray-500">OTP is sent only for registered WhatsApp numbers for the selected role.</p>
         {message && <p className="mt-2 text-sm text-red-600">{message}</p>}
         <Link to="/" className="mt-4 inline-block text-sm font-medium text-primaryGreen">
           ← Back to home
