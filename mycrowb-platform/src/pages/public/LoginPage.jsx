@@ -30,7 +30,7 @@ export default function LoginPage() {
     }
 
     try {
-      await client.post('/auth/request-otp', { mobile });
+      await client.post('/auth/request-otp', { mobile, role: selectedRole.key });
       navigate('/otp', {
         state: {
           mobile,
@@ -75,7 +75,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-3 text-xs text-gray-500">Demo mode: any mobile number is accepted.</p>
+        <p className="mt-3 text-xs text-gray-500">Demo mode: barber/admin accepts any registered mobile; staff requires admin-registered staff mobile.</p>
         {message && <p className="mt-2 text-sm text-red-600">{message}</p>}
         <Link to="/" className="mt-4 inline-block text-sm font-medium text-primaryGreen">
           ← Back to home
