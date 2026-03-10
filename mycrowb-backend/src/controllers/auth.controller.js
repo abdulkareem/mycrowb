@@ -6,12 +6,14 @@ const { mobileLookupVariants, normalizeMobile } = require('../utils/mobile');
 const notRegisteredMessage = 'User is not registered. Contact the company at mycrowbee@gmail.com.';
 
 async function findAuthorizedAdminNumber(normalizedMobile) {
-  return prisma.authorizedAdminNumber.findFirst({
-    where: {
-      mobile: { in: mobileLookupVariants(normalizedMobile) },
-      isActive: true
-    }
+  if (!normalizedMobile) return null;
+
+  const activeAdmins = await prisma.authorizedAdminNumber.findMany({
+    where: { isActive: true },
+    orderBy: { createdAt: 'desc' }
   });
+
+  return activeAdmins.find((admin) => normalizeMobile(admin.mobile) === normalizedMobile) || null;
 }
 
 async function requestOtp(req, res, next) {
