@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const prisma = require('../config/prisma');
 
-const MIN_PHOTO_SIZE = 150 * 1024;
+const MIN_PHOTO_SIZE = 1 * 1024;
 const MAX_PHOTO_SIZE = 200 * 1024;
 
 function serializeStaff(staff) {
@@ -37,7 +37,7 @@ async function createStaff(req, res, next) {
     }
     if (req.file.size < MIN_PHOTO_SIZE || req.file.size > MAX_PHOTO_SIZE) {
       removeFileSafe(req.file.path);
-      return res.status(400).json({ message: 'Photo size must be between 150KB and 200KB.' });
+      return res.status(400).json({ message: 'Photo size must be between 1KB and 200KB.' });
     }
 
     const requiredFields = [
