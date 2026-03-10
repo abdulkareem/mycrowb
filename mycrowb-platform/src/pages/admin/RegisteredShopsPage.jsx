@@ -45,6 +45,7 @@ const headers = [
   { key: 'place', label: 'Place' },
   { key: 'address', label: 'Address' },
   { key: 'district', label: 'District' },
+  { key: 'shopRegistrationNumber', label: 'Shop Registration Number' },
   { key: 'registeredAssociationName', label: 'Association' },
   { key: 'state', label: 'State' },
   { key: 'whatsappNumber', label: 'WhatsApp' },

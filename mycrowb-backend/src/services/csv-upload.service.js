@@ -17,6 +17,29 @@ function validateRequiredCsvField(row, field) {
   return row[field] !== undefined && row[field] !== null && `${row[field]}`.trim() !== '';
 }
 
+function getShopRegistrationPrefix(value) {
+  const cleaned = `${value || ''}`.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  return (cleaned.slice(0, 2) || 'XX').padEnd(2, 'X');
+}
+
+function generateShopRegistrationNumber(state, district) {
+  const randomDigits = Math.floor(Math.random() * 100).toString().padStart(2, '0');
+  return `${getShopRegistrationPrefix(state)}${getShopRegistrationPrefix(district)}${randomDigits}`;
+}
+
+async function createUniqueShopRegistrationNumber(state, district) {
+  for (let attempts = 0; attempts < 10; attempts += 1) {
+    const shopRegistrationNumber = generateShopRegistrationNumber(state, district);
+    const existingShop = await prisma.barberShop.findUnique({ where: { shopRegistrationNumber } });
+
+    if (!existingShop) {
+      return shopRegistrationNumber;
+    }
+  }
+
+  throw new Error('Unable to generate unique shop registration number');
+}
+
 async function importShops(filePath) {
   const rows = await parseCsv(filePath);
   let imported = 0;
@@ -37,6 +60,11 @@ async function importShops(filePath) {
       create: { mobile: row.mobile, name: row.ownerName, role: 'BARBER' }
     });
 
+    const district = row.district || row.city || '';
+    const state = row.state || '';
+    const existingShop = await prisma.barberShop.findUnique({ where: { ownerId: user.id } });
+    const shopRegistrationNumber = existingShop?.shopRegistrationNumber || await createUniqueShopRegistrationNumber(state, district);
+
     await prisma.barberShop.upsert({
       where: { ownerId: user.id },
       update: {
@@ -44,8 +72,10 @@ async function importShops(filePath) {
         address: row.address,
         latitude: Number(row.latitude),
         longitude: Number(row.longitude),
-        district: row.district || row.city,
-        state: row.state,
+        district,
+        state,
+        shopRegistrationNumber,
+        joinedDate: new Date(),
         roomNumber: row.roomNumber,
         buildingNumber: row.buildingNumber,
         place: row.place
@@ -56,8 +86,10 @@ async function importShops(filePath) {
         address: row.address,
         latitude: Number(row.latitude),
         longitude: Number(row.longitude),
-        district: row.district || row.city,
-        state: row.state,
+        district,
+        state,
+        shopRegistrationNumber,
+        joinedDate: new Date(),
         roomNumber: row.roomNumber,
         buildingNumber: row.buildingNumber,
         place: row.place

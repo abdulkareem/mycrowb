@@ -56,7 +56,7 @@ export default function CsvUploadPage() {
   return (
     <Layout title="CSV Upload">
       <section className="max-w-3xl rounded-xl bg-white p-6 shadow-sm">
-        <p className="text-gray-700">Bulk onboarding for shops across cities using a single CSV file. During upload, both mobile and ownerName are mandatory.</p>
+        <p className="text-gray-700">Bulk onboarding for shops across cities using a single CSV file. During upload, both mobile and ownerName are mandatory. Shop Registration Number and Joined Date are auto-generated from system upload data.</p>
 
         <div className="mt-4 flex flex-wrap gap-3">
           <button
