@@ -5,7 +5,7 @@ import Layout from '../../components/layout/Layout';
 
 const csvColumns = [
   { key: 'mobile', required: true, description: 'Owner mobile number (used as unique barber account id).' },
-  { key: 'ownerName', required: false, description: 'Owner full name. Defaults to "Owner" when empty.' },
+  { key: 'ownerName', required: true, description: 'Owner full name.' },
   { key: 'shopName', required: true, description: 'Shop display name.' },
   { key: 'address', required: true, description: 'Full shop address.' },
   { key: 'district', required: false, description: 'District name (or use city if district is unavailable).' },
@@ -14,7 +14,8 @@ const csvColumns = [
   { key: 'latitude', required: true, description: 'Latitude in decimal format (example: 11.2588).' },
   { key: 'longitude', required: true, description: 'Longitude in decimal format (example: 75.7804).' },
   { key: 'roomNumber', required: false, description: 'Room number of the shop.' },
-  { key: 'buildingNumber', required: false, description: 'Building number of the shop.' }
+  { key: 'buildingNumber', required: false, description: 'Building number of the shop.' },
+  { key: 'place', required: false, description: 'Place/area name of the shop location.' }
 ];
 
 export default function CsvUploadPage() {
@@ -55,7 +56,7 @@ export default function CsvUploadPage() {
   return (
     <Layout title="CSV Upload">
       <section className="max-w-3xl rounded-xl bg-white p-6 shadow-sm">
-        <p className="text-gray-700">Bulk onboarding for shops across cities using a single CSV file.</p>
+        <p className="text-gray-700">Bulk onboarding for shops across cities using a single CSV file. During upload, both mobile and ownerName are mandatory.</p>
 
         <div className="mt-4 flex flex-wrap gap-3">
           <button

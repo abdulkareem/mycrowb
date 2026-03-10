@@ -10,6 +10,7 @@ const defaultForm = {
   buildingNumber: '',
   wardNumber: '',
   localBody: '',
+  place: '',
   address: '',
   district: '',
   registeredAssociationName: '',
@@ -40,6 +41,7 @@ export default function ProfilePage() {
           buildingNumber: data.buildingNumber || '',
           wardNumber: data.wardNumber || '',
           localBody: data.localBody || '',
+          place: data.place || '',
           address: data.address || '',
           district: data.district || '',
           registeredAssociationName: data.registeredAssociationName || '',
@@ -102,7 +104,7 @@ export default function ProfilePage() {
   return (
     <Layout title="Profile">
       <form className="max-w-3xl rounded-xl bg-white p-6 shadow-sm grid gap-3" onSubmit={saveProfile}>
-        <p className="text-gray-700">Complete profile once; fields lock after save. Edit is allowed only after admin approval.</p>
+        <p className="text-gray-700">Complete profile once; all fields are mandatory and lock after save. Edit is allowed only after admin approval.</p>
 
         {Object.entries(form).map(([name, value]) => (
           <input
@@ -111,9 +113,9 @@ export default function ProfilePage() {
             value={value}
             onChange={handleChange}
             className="rounded-md border border-gray-300 p-2"
-            placeholder={name === 'district' ? 'district' : name === 'registeredAssociationName' ? 'registered association name (optional)' : name}
+            placeholder={name}
             readOnly={readOnly}
-            required={['shopName', 'ownerName', 'address', 'district', 'state', 'whatsappNumber', 'employeeCount', 'chairCount', 'latitude', 'longitude', 'roomNumber', 'buildingNumber', 'wardNumber', 'localBody'].includes(name)}
+            required
           />
         ))}
 

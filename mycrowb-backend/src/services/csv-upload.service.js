@@ -13,15 +13,28 @@ function parseCsv(filePath) {
   });
 }
 
+function validateRequiredCsvField(row, field) {
+  return row[field] !== undefined && row[field] !== null && `${row[field]}`.trim() !== '';
+}
+
 async function importShops(filePath) {
   const rows = await parseCsv(filePath);
   let imported = 0;
 
-  for (const row of rows) {
+  for (let index = 0; index < rows.length; index += 1) {
+    const row = rows[index];
+    const requiredFields = ['mobile', 'ownerName'];
+    const missingField = requiredFields.find((field) => !validateRequiredCsvField(row, field));
+    if (missingField) {
+      const error = new Error(`Row ${index + 2}: ${missingField} is required`);
+      error.status = 400;
+      throw error;
+    }
+
     const user = await prisma.user.upsert({
       where: { mobile: row.mobile },
-      update: { name: row.ownerName || 'Owner' },
-      create: { mobile: row.mobile, name: row.ownerName || 'Owner', role: 'BARBER' }
+      update: { name: row.ownerName },
+      create: { mobile: row.mobile, name: row.ownerName, role: 'BARBER' }
     });
 
     await prisma.barberShop.upsert({
@@ -34,7 +47,8 @@ async function importShops(filePath) {
         district: row.district || row.city,
         state: row.state,
         roomNumber: row.roomNumber,
-        buildingNumber: row.buildingNumber
+        buildingNumber: row.buildingNumber,
+        place: row.place
       },
       create: {
         ownerId: user.id,
@@ -45,7 +59,8 @@ async function importShops(filePath) {
         district: row.district || row.city,
         state: row.state,
         roomNumber: row.roomNumber,
-        buildingNumber: row.buildingNumber
+        buildingNumber: row.buildingNumber,
+        place: row.place
       }
     });
     imported += 1;
