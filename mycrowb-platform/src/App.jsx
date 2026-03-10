@@ -47,6 +47,7 @@ export default function App() {
       <Route path="/admin/csv-upload" element={<CsvUploadPage />} />
       <Route path="/admin/collections" element={<CollectionManagementPage />} />
       <Route path="/admin/payments" element={<PaymentManagementPage />} />
+      <Route path="/admin/staff" element={<CertificateIssuancePage />} />
       <Route path="/admin/certificates" element={<CertificateIssuancePage />} />
       <Route path="/admin/analytics" element={<AnalyticsDashboardPage />} />
       <Route path="/admin/routes" element={<RouteOptimizationPage />} />

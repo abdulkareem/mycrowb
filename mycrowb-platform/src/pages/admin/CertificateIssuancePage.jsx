@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
 import client from '../../api/client';
 
@@ -15,11 +16,13 @@ const initialForm = {
   salaryPerMonth: ''
 };
 
-const minPhotoSize = 150 * 1024;
+const minPhotoSize = 1 * 1024;
 const maxPhotoSize = 200 * 1024;
 
 export default function CertificateIssuancePage() {
+  const navigate = useNavigate();
   const [staffList, setStaffList] = useState([]);
+  const [clusterOptions, setClusterOptions] = useState([]);
   const [form, setForm] = useState(initialForm);
   const [photo, setPhoto] = useState(null);
   const [message, setMessage] = useState('');
@@ -37,8 +40,19 @@ export default function CertificateIssuancePage() {
     }
   };
 
+  const loadClusterOptions = async () => {
+    try {
+      const response = await client.get('/shops', { params: { sortField: 'clusterName', sortOrder: 'asc' } });
+      const clusters = [...new Set((response.data || []).map((shop) => shop.clusterName).filter(Boolean))];
+      setClusterOptions(clusters);
+    } catch (_error) {
+      setMessage('Unable to load cluster options.');
+    }
+  };
+
   useEffect(() => {
     loadStaff();
+    loadClusterOptions();
   }, []);
 
   const handleFormChange = (event) => {
@@ -64,7 +78,7 @@ export default function CertificateIssuancePage() {
       return;
     }
     if (photo.size < minPhotoSize || photo.size > maxPhotoSize) {
-      setMessage('Photo size should be between 150KB and 200KB.');
+      setMessage('Photo size should be between 1KB and 200KB.');
       return;
     }
 
@@ -106,13 +120,18 @@ export default function CertificateIssuancePage() {
   };
 
   return (
-    <Layout title="Add Staff">
+    <Layout title="Staff">
       <section className="rounded-xl bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-gray-700">Manage staff list, status and payout details.</p>
-          <button className="rounded-md bg-primaryGreen px-3 py-2 text-sm text-white" onClick={() => setShowForm((prev) => !prev)} type="button">
-            {showForm ? 'Close form' : 'Add new staff'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700" onClick={() => navigate(-1)} type="button">
+              Back
+            </button>
+            <button className="rounded-md bg-primaryGreen px-3 py-2 text-sm text-white" onClick={() => setShowForm((prev) => !prev)} type="button">
+              {showForm ? 'Close form' : 'Add new staff'}
+            </button>
+          </div>
         </div>
 
         {showForm && (
@@ -123,12 +142,17 @@ export default function CertificateIssuancePage() {
             <input className="rounded-md border border-gray-300 p-2" name="mobileNumber" onChange={handleFormChange} placeholder="Mobile" required value={form.mobileNumber} />
             <input className="rounded-md border border-gray-300 p-2" name="aadhaarNumber" onChange={handleFormChange} placeholder="Aadhaar number" required value={form.aadhaarNumber} />
             <input className="rounded-md border border-gray-300 p-2" name="vehicleNumber" onChange={handleFormChange} placeholder="Vehicle number" required value={form.vehicleNumber} />
-            <input className="rounded-md border border-gray-300 p-2" name="clustersAllotted" onChange={handleFormChange} placeholder="Clusters allotted" required value={form.clustersAllotted} />
+            <select className="rounded-md border border-gray-300 p-2" name="clustersAllotted" onChange={handleFormChange} required value={form.clustersAllotted}>
+              <option value="">Select cluster</option>
+              {clusterOptions.map((cluster) => (
+                <option key={cluster} value={cluster}>{cluster}</option>
+              ))}
+            </select>
             <input className="rounded-md border border-gray-300 p-2" name="staffIdNumber" onChange={handleFormChange} placeholder="Staff ID number" required value={form.staffIdNumber} />
             <input className="rounded-md border border-gray-300 p-2" min="0" name="commissionPerShop" onChange={handleFormChange} placeholder="Commission per shop" required step="0.01" type="number" value={form.commissionPerShop} />
             <input className="rounded-md border border-gray-300 p-2" min="0" name="salaryPerMonth" onChange={handleFormChange} placeholder="Salary per month" required step="0.01" type="number" value={form.salaryPerMonth} />
             <div className="md:col-span-2">
-              <label className="mb-1 block text-sm text-gray-700" htmlFor="photo">Photo (150KB to 200KB)</label>
+              <label className="mb-1 block text-sm text-gray-700" htmlFor="photo">Photo (1KB to 200KB)</label>
               <input accept="image/*" className="w-full rounded-md border border-gray-300 p-2" id="photo" onChange={handlePhotoChange} required type="file" />
             </div>
             <button className="rounded-md bg-primaryGreen px-3 py-2 text-sm text-white disabled:opacity-60 md:col-span-2" disabled={loading} type="submit">
