@@ -54,6 +54,7 @@ model BarberShop {
   buildingNumber   String?
   wardNumber       String?
   localBody        String?
+  place            String?
   address          String
   district         String
   registeredAssociationName String?
