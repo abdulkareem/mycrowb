@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import client from '../../api/client';
 import Layout from '../../components/layout/Layout';
 
@@ -18,16 +19,31 @@ const monthLabels = [
 ];
 
 export default function PaymentManagementPage() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [year, setYear] = useState(new Date().getFullYear());
+  const [clusterName, setClusterName] = useState('');
+  const [collectorId, setCollectorId] = useState('');
+  const [clusterOptions, setClusterOptions] = useState([]);
+  const [staffOptions, setStaffOptions] = useState([]);
+  const [summary, setSummary] = useState({ monthlyTotals: {}, monthlyTotalsAllData: {}, yearlyGrandTotals: { fee: 0, gst: 0, total: 0 } });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
   const loadPayments = async () => {
     setLoading(true);
     try {
-      const response = await client.get('/collections/admin/payments', { params: { year } });
+      const response = await client.get('/collections/admin/payments', {
+        params: {
+          year,
+          clusterName: clusterName || undefined,
+          collectorId: collectorId || undefined
+        }
+      });
       setRows(response.data.rows || []);
+      setClusterOptions(response.data.filters?.clusterOptions || []);
+      setStaffOptions(response.data.filters?.staffOptions || []);
+      setSummary(response.data.summary || { monthlyTotals: {}, monthlyTotalsAllData: {}, yearlyGrandTotals: { fee: 0, gst: 0, total: 0 } });
     } catch (_error) {
       setMessage('Unable to load payment table.');
     } finally {
@@ -37,7 +53,7 @@ export default function PaymentManagementPage() {
 
   useEffect(() => {
     loadPayments();
-  }, [year]);
+  }, [year, clusterName, collectorId]);
 
   const verifyPayment = async (shopId, month) => {
     try {
@@ -56,15 +72,55 @@ export default function PaymentManagementPage() {
       <section className="rounded-xl bg-white p-6 shadow-sm">
         <p className="text-gray-700">Verify monthly collections and generate receipts for barber shops.</p>
 
-        <div className="mt-4">
-          <label className="mr-2 text-sm text-gray-700" htmlFor="year-input">Year</label>
-          <input
-            id="year-input"
-            type="number"
-            value={year}
-            onChange={(event) => setYear(Number(event.target.value) || new Date().getFullYear())}
-            className="w-28 rounded border border-gray-300 px-2 py-1"
-          />
+        <div className="mt-4 flex flex-wrap items-end gap-3">
+          <div>
+            <label className="mr-2 text-sm text-gray-700" htmlFor="year-input">Year</label>
+            <input
+              id="year-input"
+              type="number"
+              value={year}
+              onChange={(event) => setYear(Number(event.target.value) || new Date().getFullYear())}
+              className="w-28 rounded border border-gray-300 px-2 py-1"
+            />
+          </div>
+
+          <div>
+            <label className="mr-2 text-sm text-gray-700" htmlFor="cluster-filter">Cluster</label>
+            <select
+              id="cluster-filter"
+              value={clusterName}
+              onChange={(event) => setClusterName(event.target.value)}
+              className="min-w-48 rounded border border-gray-300 px-2 py-1"
+            >
+              <option value="">All clusters</option>
+              {clusterOptions.map((cluster) => (
+                <option key={cluster} value={cluster}>{cluster}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mr-2 text-sm text-gray-700" htmlFor="staff-filter">Collection Staff</label>
+            <select
+              id="staff-filter"
+              value={collectorId}
+              onChange={(event) => setCollectorId(event.target.value)}
+              className="min-w-48 rounded border border-gray-300 px-2 py-1"
+            >
+              <option value="">All staff</option>
+              {staffOptions.map((staff) => (
+                <option key={staff.id} value={staff.id}>{staff.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => navigate('/admin/overview')}
+            className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700"
+          >
+            Back
+          </button>
         </div>
 
         {message && <p className="mt-3 text-sm text-gray-700">{message}</p>}
@@ -83,6 +139,9 @@ export default function PaymentManagementPage() {
                   <th key={month.key} className="p-2">{month.label}</th>
                 ))}
                 <th className="p-2">Pending Months</th>
+                <th className="p-2">Collected Months</th>
+                <th className="p-2">Total Fee Collected</th>
+                <th className="p-2">Total GST Collected</th>
               </tr>
             </thead>
             <tbody>
@@ -130,8 +189,45 @@ export default function PaymentManagementPage() {
                     );
                   })}
                   <td className="p-2">{row.pendingMonths}</td>
+                  <td className="p-2">{row.collectedMonths || 0}</td>
+                  <td className="p-2">₹{Number(row.totalFeeCollected || 0).toFixed(2)}</td>
+                  <td className="p-2">₹{Number(row.totalGstCollected || 0).toFixed(2)}</td>
                 </tr>
               ))}
+              {!loading && tableRows.length > 0 && (
+                <tr className="border-b bg-green-50 font-semibold">
+                  <td className="p-2" colSpan={6}>Filtered Monthly Totals</td>
+                  {monthLabels.map((month) => {
+                    const monthSummary = summary.monthlyTotals?.[month.key];
+                    return (
+                      <td key={`summary-${month.key}`} className="p-2 text-xs">
+                        ₹{Number(monthSummary?.fee || 0).toFixed(2)} + ₹{Number(monthSummary?.gst || 0).toFixed(2)}
+                      </td>
+                    );
+                  })}
+                  <td className="p-2">-</td>
+                  <td className="p-2">-</td>
+                  <td className="p-2">
+                    ₹{monthLabels.reduce((acc, month) => acc + Number(summary.monthlyTotals?.[month.key]?.fee || 0), 0).toFixed(2)}
+                  </td>
+                  <td className="p-2">
+                    ₹{monthLabels.reduce((acc, month) => acc + Number(summary.monthlyTotals?.[month.key]?.gst || 0), 0).toFixed(2)}
+                  </td>
+                </tr>
+              )}
+              {!loading && (
+                <tr className="bg-blue-50 font-semibold">
+                  <td className="p-2" colSpan={6}>Year Total (All DB Data)</td>
+                  {monthLabels.map((month) => {
+                    const monthAllData = summary.monthlyTotalsAllData?.[month.key];
+                    return <td key={`year-${month.key}`} className="p-2 text-xs">₹{Number(monthAllData?.total || 0).toFixed(2)}</td>;
+                  })}
+                  <td className="p-2">-</td>
+                  <td className="p-2">-</td>
+                  <td className="p-2">₹{Number(summary.yearlyGrandTotals?.fee || 0).toFixed(2)}</td>
+                  <td className="p-2">₹{Number(summary.yearlyGrandTotals?.gst || 0).toFixed(2)}</td>
+                </tr>
+              )}
             </tbody>
           </table>
           {loading && <p className="p-3 text-sm text-gray-600">Loading payments...</p>}

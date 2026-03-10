@@ -173,16 +173,57 @@ async function verifyShopPayment(req, res, next) {
 async function listAdminPayments(req, res, next) {
   try {
     const year = Number(req.query.year || new Date().getFullYear());
+    const clusterName = req.query.clusterName || undefined;
+    const collectorId = req.query.collectorId || undefined;
+
+    const collectionWhere = {
+      year,
+      ...(collectorId ? { collectorId } : {})
+    };
+
+    const shopsWhere = {
+      ...(clusterName ? { clusterName } : {})
+    };
 
     const shops = await prisma.barberShop.findMany({
+      where: shopsWhere,
       orderBy: { shopName: 'asc' }
     });
 
     const collections = await prisma.collection.findMany({
-      where: { year },
+      where: collectionWhere,
       include: {
         receipt: true,
         collector: { select: { id: true, name: true, mobile: true } }
+      }
+    });
+
+    const allYearCollections = await prisma.collection.findMany({
+      where: { year, collected: true },
+      include: {
+        shop: true
+      }
+    });
+
+    const allShops = await prisma.barberShop.findMany({
+      select: { clusterName: true }
+    });
+
+    const staffOptions = await prisma.user.findMany({
+      where: {
+        role: 'SERVICE_STAFF',
+        collections: {
+          some: {
+            year
+          }
+        }
+      },
+      select: {
+        id: true,
+        name: true
+      },
+      orderBy: {
+        name: 'asc'
       }
     });
 
@@ -196,12 +237,18 @@ async function listAdminPayments(req, res, next) {
       const { tippingFee, gst } = getShopCharges(shop);
       const monthMap = {};
       let filledMonthCount = 0;
+      let totalFeeCollected = 0;
+      let totalGstCollected = 0;
 
       MONTHS.forEach((_m, index) => {
         const monthNumber = index + 1;
         const row = byShop[shop.id]?.[monthNumber];
         const isFilled = Boolean(row?.collected);
         if (isFilled) filledMonthCount += 1;
+        if (isFilled && row?.paid) {
+          totalFeeCollected += tippingFee;
+          totalGstCollected += gst;
+        }
         monthMap[MONTHS[index]] = {
           month: monthNumber,
           collected: isFilled,
@@ -228,13 +275,83 @@ async function listAdminPayments(req, res, next) {
         clusterName: shop.clusterName,
         tippingFee,
         gst,
+        collectedMonths: filledMonthCount,
         pendingMonths,
+        totalFeeCollected: Number(totalFeeCollected.toFixed(2)),
+        totalGstCollected: Number(totalGstCollected.toFixed(2)),
         collectionFrequency: shop.collectionFrequency,
         months: monthMap
       };
     }));
 
-    return res.json({ year, rows });
+    const monthlyTotals = MONTHS.reduce((acc, monthKey, index) => {
+      const month = index + 1;
+      let fee = 0;
+      let gst = 0;
+      rows.forEach((row) => {
+        const monthData = row.months?.[monthKey];
+        if (monthData?.collected && monthData?.paid) {
+          fee += Number(monthData.fee || 0);
+          gst += Number(monthData.gst || 0);
+        }
+      });
+
+      acc[monthKey] = {
+        month,
+        fee: Number(fee.toFixed(2)),
+        gst: Number(gst.toFixed(2)),
+        total: Number((fee + gst).toFixed(2))
+      };
+      return acc;
+    }, {});
+
+    const yearlyGrandTotals = allYearCollections.reduce((acc, item) => {
+      const charges = getShopCharges(item.shop);
+      acc.fee += charges.tippingFee;
+      acc.gst += charges.gst;
+      return acc;
+    }, { fee: 0, gst: 0 });
+
+    const monthlyTotalsAllData = MONTHS.reduce((acc, monthKey, index) => {
+      const month = index + 1;
+      const monthCollections = allYearCollections.filter((item) => item.month === month);
+      const totals = monthCollections.reduce((sum, item) => {
+        const charges = getShopCharges(item.shop);
+        sum.fee += charges.tippingFee;
+        sum.gst += charges.gst;
+        return sum;
+      }, { fee: 0, gst: 0 });
+
+      acc[monthKey] = {
+        month,
+        fee: Number(totals.fee.toFixed(2)),
+        gst: Number(totals.gst.toFixed(2)),
+        total: Number((totals.fee + totals.gst).toFixed(2))
+      };
+      return acc;
+    }, {});
+
+    const clusterOptions = [...new Set(allShops.map((shop) => shop.clusterName).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+
+    return res.json({
+      year,
+      rows,
+      filters: {
+        selectedClusterName: clusterName || '',
+        selectedCollectorId: collectorId || '',
+        clusterOptions,
+        staffOptions
+      },
+      summary: {
+        monthlyTotals,
+        monthlyTotalsAllData,
+        yearlyGrandTotals: {
+          fee: Number(yearlyGrandTotals.fee.toFixed(2)),
+          gst: Number(yearlyGrandTotals.gst.toFixed(2)),
+          total: Number((yearlyGrandTotals.fee + yearlyGrandTotals.gst).toFixed(2))
+        }
+      }
+    });
   } catch (error) {
     return next(error);
   }
