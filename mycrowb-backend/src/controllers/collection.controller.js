@@ -535,6 +535,53 @@ async function listMyCollections(req, res, next) {
   }
 }
 
+async function listStaffRouteStatuses(req, res, next) {
+  try {
+    const month = Number(req.query.month || new Date().getMonth() + 1);
+    const year = Number(req.query.year || new Date().getFullYear());
+    const shopIds = String(req.query.shopIds || '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    const where = {
+      month,
+      year,
+      ...(shopIds.length ? { shopId: { in: shopIds } } : {})
+    };
+
+    const rows = await prisma.collection.findMany({
+      where,
+      select: {
+        id: true,
+        shopId: true,
+        month: true,
+        year: true,
+        status: true,
+        collected: true,
+        paid: true,
+        hairWeight: true,
+        amount: true,
+        tippingFeeCollected: true,
+        gstCollected: true,
+        collectionDate: true,
+        paymentDate: true,
+        staffLatitude: true,
+        staffLongitude: true
+      }
+    });
+
+    const byShopId = rows.reduce((acc, item) => {
+      acc[item.shopId] = item;
+      return acc;
+    }, {});
+
+    return res.json({ month, year, byShopId });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function downloadMyReceipt(req, res, next) {
   let tempPath;
   try {
@@ -573,6 +620,7 @@ module.exports = {
   markCollectionByShopMonth,
   issueReceipt,
   listAdminPayments,
+  listStaffRouteStatuses,
   listMyCollections,
   downloadMyReceipt
 };

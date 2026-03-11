@@ -8,6 +8,7 @@ const {
   markCollectionByShopMonth,
   issueReceipt,
   listAdminPayments,
+  listStaffRouteStatuses,
   listMyCollections,
   downloadMyReceipt
 } = require('../controllers/collection.controller');
