@@ -80,6 +80,57 @@ function formatWhatsappRecipient(mobile) {
   return `91${normalizedMobile}`;
 }
 
+
+function buildWhatsappTemplatePayload({ recipient, pin, bodyParamCount = 1, urlButtonParamCount = 1 }) {
+  const components = [];
+
+  if (bodyParamCount > 0) {
+    components.push({
+      type: 'body',
+      parameters: Array.from({ length: bodyParamCount }, () => ({ type: 'text', text: `${pin}` }))
+    });
+  }
+
+  if (urlButtonParamCount > 0) {
+    components.push({
+      type: 'button',
+      sub_type: 'url',
+      index: '0',
+      parameters: Array.from({ length: urlButtonParamCount }, () => ({ type: 'text', text: `${pin}` }))
+    });
+  }
+
+  return {
+    messaging_product: 'whatsapp',
+    to: recipient,
+    type: 'template',
+    template: {
+      name: whatsappTemplateName,
+      language: { code: whatsappTemplateLanguage },
+      ...(components.length > 0 ? { components } : {})
+    }
+  };
+}
+
+function parseExpectedParameterCount(errorData, componentName) {
+  const detailText = [
+    errorData?.error_data?.details,
+    errorData?.error?.error_data?.details,
+    errorData?.error?.message,
+    errorData?.message
+  ].filter(Boolean).join(' | ');
+
+  const componentRegex = new RegExp(`${componentName}[^0-9]*(?:expected|has)\\s*(\\d+)`, 'i');
+  const componentMatch = detailText.match(componentRegex);
+  if (componentMatch) return Number(componentMatch[1]);
+
+  const fallbackRegex = new RegExp(`${componentName}[^0-9]*\\((\\d+)\\)`, 'i');
+  const fallbackMatch = detailText.match(fallbackRegex);
+  if (fallbackMatch) return Number(fallbackMatch[1]);
+
+  return null;
+}
+
 async function sendWhatsAppPin(phoneNumber, pin) {
   if (!whatsappPhoneNumberId || !whatsappAccessToken || !whatsappApiUrl) {
     throw new Error('Missing WhatsApp Cloud API configuration');
@@ -88,44 +139,6 @@ async function sendWhatsAppPin(phoneNumber, pin) {
   const recipient = formatWhatsappRecipient(phoneNumber);
   const url = `${whatsappApiUrl.replace(/\/$/, '')}/${whatsappPhoneNumberId}/messages`;
 
-  const basePayload = {
-    messaging_product: 'whatsapp',
-    to: recipient,
-    type: 'template',
-    template: {
-      name: whatsappTemplateName,
-      language: { code: whatsappTemplateLanguage },
-      components: [
-        {
-          type: 'body',
-          parameters: [
-            { type: 'text', text: `${pin}` }
-          ]
-        }
-      ]
-    }
-  };
-
-  const withUrlButtonPayload = {
-    ...basePayload,
-    template: {
-      ...basePayload.template,
-      components: [
-        ...basePayload.template.components,
-        {
-          type: 'button',
-          sub_type: 'url',
-          index: '0',
-          parameters: [
-            { type: 'text', text: `${pin}` }
-          ]
-        }
-      ]
-    }
-  };
-
-  const withoutUrlButtonPayload = basePayload;
-
   const postTemplatePayload = (payload) => axios.post(url, payload, {
     headers: {
       Authorization: `Bearer ${whatsappAccessToken}`,
@@ -133,34 +146,93 @@ async function sendWhatsAppPin(phoneNumber, pin) {
     }
   });
 
-  try {
-    const response = await postTemplatePayload(withUrlButtonPayload);
+  const attempts = [
+    { label: 'default', payload: buildWhatsappTemplatePayload({ recipient, pin, bodyParamCount: 1, urlButtonParamCount: 1 }) }
+  ];
 
-    return response.data;
-  } catch (error) {
-    const code = error.response?.data?.error?.code;
-    if (code === 132000) {
-      try {
-        const response = await postTemplatePayload(withoutUrlButtonPayload);
+  const seenPayloads = new Set([JSON.stringify(attempts[0].payload)]);
+  let lastErrorDetails = null;
+
+  for (let index = 0; index < attempts.length; index += 1) {
+    const attempt = attempts[index];
+
+    try {
+      const response = await postTemplatePayload(attempt.payload);
+      if (index > 0) {
         // eslint-disable-next-line no-console
-        console.warn('WhatsApp PIN delivery succeeded after retrying without URL button parameter', { recipient });
-        return response.data;
-      } catch (retryError) {
-        const retryDetails = retryError.response?.data || { message: retryError.message };
-        // eslint-disable-next-line no-console
-        console.error('WhatsApp PIN delivery retry failed', { recipient, details: retryDetails });
+        console.warn('WhatsApp PIN delivery succeeded after payload fallback', { recipient, fallback: attempt.label });
       }
+      return response.data;
+    } catch (error) {
+      const details = error.response?.data || { message: error.message };
+      lastErrorDetails = details;
+      const code = error.response?.data?.error?.code;
+
+      if (code === 132000) {
+        const expectedBody = parseExpectedParameterCount(details, 'body');
+        const expectedUrlButton = parseExpectedParameterCount(details, 'button');
+
+        if (expectedBody !== null || expectedUrlButton !== null) {
+          const adaptivePayload = buildWhatsappTemplatePayload({
+            recipient,
+            pin,
+            bodyParamCount: expectedBody ?? 1,
+            urlButtonParamCount: expectedUrlButton ?? 1
+          });
+          const signature = JSON.stringify(adaptivePayload);
+
+          if (!seenPayloads.has(signature)) {
+            attempts.push({
+              label: `adaptive(body:${expectedBody ?? 1},button:${expectedUrlButton ?? 1})`,
+              payload: adaptivePayload
+            });
+            seenPayloads.add(signature);
+            // eslint-disable-next-line no-console
+            console.warn('WhatsApp PIN delivery parameter mismatch, retrying with adaptive payload', {
+              recipient,
+              expectedBodyParamCount: expectedBody,
+              expectedButtonParamCount: expectedUrlButton
+            });
+            continue;
+          }
+        }
+
+        const fallbackPayloads = [
+          { label: 'body+url-button', payload: buildWhatsappTemplatePayload({ recipient, pin, bodyParamCount: 1, urlButtonParamCount: 1 }) },
+          { label: 'body-only', payload: buildWhatsappTemplatePayload({ recipient, pin, bodyParamCount: 1, urlButtonParamCount: 0 }) },
+          { label: 'url-button-only', payload: buildWhatsappTemplatePayload({ recipient, pin, bodyParamCount: 0, urlButtonParamCount: 1 }) },
+          { label: 'no-components', payload: buildWhatsappTemplatePayload({ recipient, pin, bodyParamCount: 0, urlButtonParamCount: 0 }) }
+        ];
+
+        fallbackPayloads.forEach((fallback) => {
+          const signature = JSON.stringify(fallback.payload);
+          if (!seenPayloads.has(signature)) {
+            attempts.push(fallback);
+            seenPayloads.add(signature);
+          }
+        });
+
+        if (index < attempts.length - 1) {
+          // eslint-disable-next-line no-console
+          console.warn('WhatsApp PIN delivery payload mismatch, retrying with next payload shape', {
+            recipient,
+            failedPayload: attempt.label,
+            nextPayload: attempts[index + 1].label
+          });
+          continue;
+        }
+      }
+
+      // eslint-disable-next-line no-console
+      console.error('WhatsApp PIN delivery failed', { recipient, payload: attempt.label, details });
+      break;
     }
-
-    const details = error.response?.data || { message: error.message };
-    // eslint-disable-next-line no-console
-    console.error('WhatsApp PIN delivery failed', { recipient, details });
-
-    const deliveryError = new Error('Failed to send OTP on WhatsApp. Please verify the number has joined WhatsApp and template is approved.');
-    deliveryError.status = 502;
-    deliveryError.details = details;
-    throw deliveryError;
   }
+
+  const deliveryError = new Error('Failed to send OTP on WhatsApp. Please verify the number has joined WhatsApp and template is approved.');
+  deliveryError.status = 502;
+  deliveryError.details = lastErrorDetails;
+  throw deliveryError;
 }
 
 module.exports = { sendOtp, verifyOtp, sendWhatsappMessage, sendWhatsAppPin };
