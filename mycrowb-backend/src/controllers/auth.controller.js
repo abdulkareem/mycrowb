@@ -1,5 +1,5 @@
 const prisma = require('../config/prisma');
-const { sendOtp, verifyOtp, sendWhatsappMessage } = require('../services/otp.service');
+const { sendOtp, verifyOtp, sendWhatsAppPin } = require('../services/otp.service');
 const { signToken } = require('../utils/jwt');
 const { mobileLookupVariants, normalizeMobile } = require('../utils/mobile');
 const { ensureLoginActivityLocationColumns } = require('../utils/db-capabilities');
@@ -10,10 +10,6 @@ const MAX_PIN_ATTEMPTS = 4;
 
 function generatePin() {
   return `${Math.floor(100000 + Math.random() * 900000)}`;
-}
-
-function buildPinMessage(pin) {
-  return `MYCROWB Login PIN\n\nYour secure login PIN is:\n\n${pin}\n\nUse this PIN to login to the Mycrowb Hair Waste Network portal.\n\nDo not share this PIN with anyone.`;
 }
 
 async function findAuthorizedAdminNumber(normalizedMobile) {
@@ -142,7 +138,7 @@ async function requestOtp(req, res, next) {
       }
 
       const newPin = generatePin();
-      await sendWhatsappMessage(normalizedMobile, buildPinMessage(newPin));
+      await sendWhatsAppPin(normalizedMobile, newPin);
 
       await prisma.user.update({
         where: { id: user.id },

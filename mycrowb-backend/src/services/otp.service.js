@@ -1,10 +1,14 @@
 const twilio = require('twilio');
+const axios = require('axios');
 const {
   twilioAccountSid,
   twilioAuthToken,
   twilioVerifyServiceSid,
   smsFallbackSender,
-  twilioWhatsappFrom
+  twilioWhatsappFrom,
+  whatsappPhoneNumberId,
+  whatsappAccessToken,
+  whatsappApiUrl
 } = require('../config/env');
 const { normalizeMobile } = require('../utils/mobile');
 
@@ -54,4 +58,59 @@ async function sendWhatsappMessage(mobile, body) {
   return { provider: 'fallback', bodyInLogs: true };
 }
 
-module.exports = { sendOtp, verifyOtp, sendWhatsappMessage };
+function formatWhatsappRecipient(mobile) {
+  const normalizedMobile = normalizeMobile(mobile);
+  if (!normalizedMobile) return '';
+
+  if (normalizedMobile.length === 10) {
+    return `91${normalizedMobile}`;
+  }
+
+  return normalizedMobile;
+}
+
+async function sendWhatsAppPin(phoneNumber, pin) {
+  if (!whatsappPhoneNumberId || !whatsappAccessToken || !whatsappApiUrl) {
+    throw new Error('Missing WhatsApp Cloud API configuration');
+  }
+
+  const recipient = formatWhatsappRecipient(phoneNumber);
+  const url = `${whatsappApiUrl.replace(/\/$/, '')}/${whatsappPhoneNumberId}/messages`;
+
+  const payload = {
+    messaging_product: 'whatsapp',
+    to: recipient,
+    type: 'template',
+    template: {
+      name: 'registration_otp',
+      language: { code: 'en_US' },
+      components: [
+        {
+          type: 'body',
+          parameters: [
+            { type: 'text', text: `${pin}` }
+          ]
+        },
+        {
+          type: 'button',
+          sub_type: 'url',
+          index: '0',
+          parameters: [
+            { type: 'text', text: `${pin}` }
+          ]
+        }
+      ]
+    }
+  };
+
+  const response = await axios.post(url, payload, {
+    headers: {
+      Authorization: `Bearer ${whatsappAccessToken}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  return response.data;
+}
+
+module.exports = { sendOtp, verifyOtp, sendWhatsappMessage, sendWhatsAppPin };
