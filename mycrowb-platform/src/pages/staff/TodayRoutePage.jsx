@@ -40,7 +40,7 @@ export default function TodayRoutePage() {
   const [expandedRowId, setExpandedRowId] = useState('');
   const [message, setMessage] = useState('');
   const [staffPayConfig, setStaffPayConfig] = useState({ commissionPerShop: 0, salaryPerMonth: 0 });
-  const [selectedRouteIndex, setSelectedRouteIndex] = useState(0);
+  const [routeStatusByShopId, setRouteStatusByShopId] = useState({});
 
   const routes = useMemo(() => {
     const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -75,6 +75,52 @@ export default function TodayRoutePage() {
     loadStaffPayConfig();
   }, []);
 
+  useEffect(() => {
+    const loadRouteStatuses = async () => {
+      const shopIds = (route?.shops || []).map((shop) => shop.id).filter(Boolean);
+      if (!shopIds.length) {
+        setRouteStatusByShopId({});
+        return;
+      }
+
+      const routeDate = route?.date ? new Date(route.date) : new Date();
+      const month = Number(route?.shops?.[0]?.collectionMonth || (routeDate.getMonth() + 1));
+      const year = Number(route?.shops?.[0]?.collectionYear || routeDate.getFullYear());
+
+      try {
+        const response = await client.get('/collections/staff/route-status', {
+          params: { month, year, shopIds: shopIds.join(',') }
+        });
+
+        const remoteByShopId = response.data?.byShopId || {};
+        setRouteStatusByShopId(remoteByShopId);
+
+        setCollectionByShopId((prev) => {
+          const merged = { ...prev };
+          Object.entries(remoteByShopId).forEach(([shopId, item]) => {
+            merged[shopId] = {
+              ...(merged[shopId] || {}),
+              status: item.collected ? 'collected' : merged[shopId]?.status || 'pending',
+              hairWeight: item.hairWeight ?? merged[shopId]?.hairWeight,
+              tippingFeeCollected: item.tippingFeeCollected ?? merged[shopId]?.tippingFeeCollected,
+              gstCollected: item.gstCollected ?? merged[shopId]?.gstCollected,
+              moneyCollected: item.amount ?? merged[shopId]?.moneyCollected,
+              collectedAt: item.collectionDate || merged[shopId]?.collectedAt,
+              paymentDate: item.paymentDate || merged[shopId]?.paymentDate,
+              paid: Boolean(item.paid)
+            };
+          });
+          localStorage.setItem(STAFF_COLLECTION_KEY, JSON.stringify(merged));
+          return merged;
+        });
+      } catch (_error) {
+        // keep local values when API is unavailable
+      }
+    };
+
+    loadRouteStatuses();
+  }, [route]);
+
   const mapShops = useMemo(
     () => (route?.shops || [])
       .filter((shop) => isValidCoordinate(shop.latitude, shop.longitude))
@@ -99,7 +145,6 @@ export default function TodayRoutePage() {
 
   const stats = useMemo(() => {
     const shops = route?.shops || [];
-    const now = new Date();
 
     const routeTotals = shops.reduce((acc, shop) => {
       const status = collectionByShopId[shop.id]?.status || 'pending';
@@ -109,13 +154,15 @@ export default function TodayRoutePage() {
       return acc;
     }, { collected: 0, missed: 0, notCollected: 0 });
 
-    const entries = Object.values(collectionByShopId).filter((item) => item?.status === 'collected' && item?.collectedAt);
+    const entries = Object.values(routeStatusByShopId).filter((item) => item?.collected && item?.collectionDate);
+    const now = new Date();
+
     const monthlyCollectedCount = entries.filter((item) => {
-      const date = new Date(item.collectedAt);
+      const date = new Date(item.collectionDate);
       return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
     }).length;
 
-    const yearlyCollectedCount = entries.filter((item) => new Date(item.collectedAt).getFullYear() === now.getFullYear()).length;
+    const yearlyCollectedCount = entries.filter((item) => new Date(item.collectionDate).getFullYear() === now.getFullYear()).length;
 
     const monthlyCommission = (monthlyCollectedCount * Number(staffPayConfig.commissionPerShop || 0)) + Number(staffPayConfig.salaryPerMonth || 0);
     const yearlyCommission = (yearlyCollectedCount * Number(staffPayConfig.commissionPerShop || 0)) + (Number(staffPayConfig.salaryPerMonth || 0) * 12);
@@ -125,7 +172,7 @@ export default function TodayRoutePage() {
       monthlyCommission: Number(monthlyCommission.toFixed(2)),
       yearlyCommission: Number(yearlyCommission.toFixed(2))
     };
-  }, [route, collectionByShopId, staffPayConfig]);
+  }, [route, collectionByShopId, routeStatusByShopId, staffPayConfig]);
 
   const updateCollectionLocally = (shopId, patch) => {
     setCollectionByShopId((prev) => {
@@ -185,7 +232,8 @@ export default function TodayRoutePage() {
         staffLatitude,
         staffLongitude,
         collectedAt: nowIso,
-        paymentDate: nowIso
+        paymentDate: nowIso,
+        paid: false
       });
 
       const collectionMonth = Number(shop.collectionMonth || new Date().getMonth() + 1);
@@ -215,6 +263,16 @@ export default function TodayRoutePage() {
           staffLongitude
         });
       }
+
+      setRouteStatusByShopId((prev) => ({
+        ...prev,
+        [shop.id]: {
+          ...(prev[shop.id] || {}),
+          collected: true,
+          paid: false,
+          collectionDate: nowIso
+        }
+      }));
 
       setExpandedRowId('');
       setMessage(`Collection confirmed for ${shop.shopName}.`);
@@ -282,6 +340,7 @@ export default function TodayRoutePage() {
                 const collectionData = collectionByShopId[shop.id] || {};
                 const { tippingFee, gst, total } = getShopCharges(shop);
                 const isExpanded = expandedRowId === shop.id;
+                const isPaymentVerified = Boolean(routeStatusByShopId[shop.id]?.paid);
 
                 return (
                   <Fragment key={shop.id}>
@@ -301,8 +360,8 @@ export default function TodayRoutePage() {
                       </td>
                       <td className="p-2">
                         <div className="flex gap-2">
-                          <button type="button" className="rounded-md bg-primaryGreen px-2 py-1 text-xs text-white" onClick={() => setExpandedRowId(isExpanded ? '' : shop.id)}>
-                            Collection confirmation
+                          <button type="button" className={`rounded-md px-2 py-1 text-xs text-white ${isPaymentVerified ? 'cursor-not-allowed bg-gray-400' : 'bg-primaryGreen'}`} onClick={() => setExpandedRowId(isExpanded ? '' : shop.id)} disabled={isPaymentVerified}>
+                            {isPaymentVerified ? 'Payment verified' : 'Collection confirmation'}
                           </button>
                           <button type="button" className="rounded-md border border-gray-300 px-2 py-1 text-xs" onClick={() => navigate(`/staff/shop-map?shopId=${shop.id}`)}>
                             Open shop map
@@ -345,8 +404,8 @@ export default function TodayRoutePage() {
                               />
                             </label>
                             <div className="flex items-end">
-                              <button type="button" className="rounded-md bg-leafGreen px-3 py-2 text-xs font-medium text-white" onClick={() => handleConfirmCollection(shop)}>
-                                Confirm and save
+                              <button type="button" className="rounded-md bg-leafGreen px-3 py-2 text-xs font-medium text-white disabled:cursor-not-allowed disabled:bg-gray-400" onClick={() => handleConfirmCollection(shop)} disabled={isPaymentVerified}>
+                                {isPaymentVerified ? 'Payment verified' : 'Confirm and save'}
                               </button>
                             </div>
                           </div>
