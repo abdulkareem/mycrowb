@@ -8,7 +8,11 @@ const {
   twilioWhatsappFrom,
   whatsappPhoneNumberId,
   whatsappAccessToken,
-  whatsappApiUrl
+  whatsappApiUrl,
+  whatsappTemplateName,
+  whatsappTemplateLanguage,
+  whatsappTemplateParamMode,
+  whatsappTemplateAppName
 } = require('../config/env');
 const { normalizeMobile } = require('../utils/mobile');
 const prisma = require('../config/prisma');
@@ -105,19 +109,24 @@ async function sendWhatsAppOTP(phoneNumber, otp) {
     to: recipient,
     type: 'template',
     template: {
-      name: 'registration_otp',
-      language: { code: 'en_US' },
+      name: whatsappTemplateName,
+      language: { code: whatsappTemplateLanguage },
       components: [
         {
           type: 'body',
-          parameters: [
-            { type: 'text', text: 'MYCROWB Hair Waste Recycling Network' },
-            { type: 'text', text: otpCode }
-          ]
+          parameters: templateParameters
         }
       ]
     }
   };
+
+  // eslint-disable-next-line no-console
+  console.log('WhatsApp template request config', {
+    templateName: whatsappTemplateName,
+    templateLanguage: whatsappTemplateLanguage,
+    parameterCount: templateParameters.length,
+    parameterMode: whatsappTemplateParamMode
+  });
 
   const postTemplatePayload = () => axios.post(url, payload, {
     headers: {

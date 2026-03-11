@@ -32,6 +32,8 @@ module.exports = {
   whatsappApiUrl: process.env.WHATSAPP_API_URL || 'https://graph.facebook.com/v19.0',
   whatsappTemplateName: process.env.WHATSAPP_TEMPLATE_NAME || 'registration_otp',
   whatsappTemplateLanguage: process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'en_US',
+  whatsappTemplateParamMode: process.env.WHATSAPP_TEMPLATE_PARAM_MODE || 'app_name_and_otp',
+  whatsappTemplateAppName: process.env.WHATSAPP_TEMPLATE_APP_NAME || 'MYCROWB Hair Waste Recycling Network',
   osrmBaseUrl: process.env.OSRM_BASE_URL || 'https://router.project-osrm.org',
   aiServiceUrl: process.env.AI_SERVICE_URL || 'http://localhost:8001',
   appBaseUrl: process.env.APP_BASE_URL || 'http://localhost:8080',
