@@ -101,6 +101,7 @@ async function sendWhatsAppOTP(phoneNumber, otp) {
   const recipient = formatWhatsappRecipient(phoneNumber);
   const url = `${whatsappApiUrl.replace(/\/$/, '')}/${whatsappPhoneNumberId}/messages`;
   const otpCode = otp || `${Math.floor(100000 + Math.random() * 900000)}`;
+  const templateParameters = buildTemplateParameters(otpCode);
 
   const normalizedMobile = normalizeMobile(phoneNumber);
 
@@ -171,6 +172,19 @@ async function sendWhatsAppOTP(phoneNumber, otp) {
     deliveryError.code = errorCode;
     deliveryError.fbtraceId = fbtraceId;
     throw deliveryError;
+  }
+}
+
+function buildTemplateParameters(otpCode) {
+  switch (whatsappTemplateParamMode) {
+    case 'otp_only':
+      return [{ type: 'text', text: otpCode }];
+    case 'app_name_and_otp':
+    default:
+      return [
+        { type: 'text', text: whatsappTemplateAppName },
+        { type: 'text', text: otpCode }
+      ];
   }
 }
 
