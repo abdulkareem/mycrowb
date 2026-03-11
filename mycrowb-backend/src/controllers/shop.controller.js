@@ -327,7 +327,7 @@ async function updateMyShopProfile(req, res, next) {
         ...data,
         latitude: Number(req.body.latitude ?? 0),
         longitude: Number(req.body.longitude ?? 0),
-        shopName: req.body.shopName || 'Barber Shop',
+        shopName: req.body.shopName || 'Hair & Beauty Establishment',
         address: req.body.address || '',
         district: req.body.district || '',
         registeredAssociationName: req.body.registeredAssociationName || null,
@@ -392,7 +392,7 @@ async function trackMyCollectionVehicle(req, res, next) {
     });
 
     if (!myShop) {
-      return res.status(404).json({ message: 'Shop not found for barber' });
+      return res.status(404).json({ message: 'Shop not found for hair stylist' });
     }
 
     const latestCollectionForShop = await prisma.collection.findFirst({

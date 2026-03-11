@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
 
 const roleLabels = {
-  barber: 'Barber',
+  barber: 'Hair Stylist',
   staff: 'Staff',
   admin: 'Admin'
 };

@@ -110,7 +110,7 @@ async function getMyLatestCertificate(req, res, next) {
   try {
     const shop = await prisma.barberShop.findUnique({ where: { ownerId: req.user.sub } });
     if (!shop) {
-      return res.status(404).json({ message: 'Shop not found for barber.' });
+      return res.status(404).json({ message: 'Shop not found for hair stylist.' });
     }
 
     const latestCertificate = await prisma.certificate.findFirst({
@@ -139,7 +139,7 @@ async function downloadMyLatestCertificate(req, res, next) {
     });
 
     if (!shop) {
-      return res.status(404).json({ message: 'Shop not found for barber.' });
+      return res.status(404).json({ message: 'Shop not found for hair stylist.' });
     }
 
     const latestCertificate = await prisma.certificate.findFirst({

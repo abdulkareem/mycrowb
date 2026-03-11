@@ -33,7 +33,7 @@ export default function CertificatesPage() {
       setMessage('Certificate generated and downloaded successfully.');
     } catch (err) {
       if (err?.response?.status === 401) {
-        setMessage('Session expired or unauthorized. Please log in with a barber account and try again.');
+        setMessage('Session expired or unauthorized. Please log in with a hair stylist account and try again.');
         return;
       }
       if (err?.response?.status === 404) {
