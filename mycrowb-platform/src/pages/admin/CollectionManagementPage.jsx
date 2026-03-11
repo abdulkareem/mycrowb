@@ -122,6 +122,63 @@ export default function CollectionManagementPage() {
           <button type="button" onClick={() => navigate('/admin/overview')} className="rounded border border-gray-300 px-3 py-1.5 text-sm">Back</button>
         </div>
 
+        <div className="mt-4 flex flex-wrap items-end gap-3">
+          <div>
+            <label className="mr-2 text-sm text-gray-700" htmlFor="collection-year">Year</label>
+            <input
+              id="collection-year"
+              type="number"
+              value={year}
+              onChange={(event) => setYear(Number(event.target.value) || currentDate.getFullYear())}
+              className="w-28 rounded border border-gray-300 px-2 py-1"
+            />
+          </div>
+
+          <div>
+            <label className="mr-2 text-sm text-gray-700" htmlFor="collection-month">Month</label>
+            <select
+              id="collection-month"
+              value={month}
+              onChange={(event) => setMonth(Number(event.target.value))}
+              className="rounded border border-gray-300 px-2 py-1"
+            >
+              {monthOptions.map((option) => (
+                <option key={option.key} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mr-2 text-sm text-gray-700" htmlFor="cluster-scope">Cluster Scope</label>
+            <select
+              id="cluster-scope"
+              value={clusterScope}
+              onChange={(event) => setClusterScope(event.target.value)}
+              className="rounded border border-gray-300 px-2 py-1"
+            >
+              <option value="ALL">All clusters</option>
+              <option value="REGISTERED">Registered cluster</option>
+            </select>
+          </div>
+
+          {clusterScope === 'REGISTERED' && (
+            <div>
+              <label className="mr-2 text-sm text-gray-700" htmlFor="cluster-name">Cluster</label>
+              <select
+                id="cluster-name"
+                value={clusterName}
+                onChange={(event) => setClusterName(event.target.value)}
+                className="min-w-48 rounded border border-gray-300 px-2 py-1"
+              >
+                <option value="">All registered clusters</option>
+                {clusterOptions.map((cluster) => (
+                  <option key={cluster} value={cluster}>{cluster}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
         <div className="mt-4 grid gap-2 text-sm text-gray-700 sm:grid-cols-3">
           <div className="rounded-md bg-lightGreen/40 p-3">Pending: {summary.pending}</div>
           <div className="rounded-md bg-lightGreen/40 p-3">Collected: {summary.collected}</div>
@@ -129,6 +186,40 @@ export default function CollectionManagementPage() {
         </div>
 
         {message && <p className="mt-3 text-sm text-gray-700">{message}</p>}
+
+        <div className="mt-4 overflow-x-auto">
+          <table className="min-w-full border-collapse text-sm">
+            <thead>
+              <tr className="bg-gray-100 text-left">
+                <th className="p-2">Shop Reg Number</th>
+                <th className="p-2">Shop Name</th>
+                <th className="p-2">Owner</th>
+                <th className="p-2">WhatsApp</th>
+                <th className="p-2">Collection Status</th>
+                <th className="p-2">Payment Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {!loading && tableRows.map((row) => (
+                <tr className="border-b border-gray-200" key={row.id}>
+                  <td className="p-2">{row.shopRegistrationNumber}</td>
+                  <td className="p-2">{row.shopName}</td>
+                  <td className="p-2">{row.ownerName}</td>
+                  <td className="p-2">{row.whatsappNumber}</td>
+                  <td className="p-2">{row.collectionStatus}</td>
+                  <td className="p-2">{row.paymentStatus}</td>
+                </tr>
+              ))}
+              {!loading && !tableRows.length && (
+                <tr>
+                  <td className="p-4 text-center text-gray-500" colSpan="6">No collection rows found for the selected filters.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+          {loading && <p className="p-3 text-sm text-gray-600">Loading collections...</p>}
+        </div>
+
       </section>
     </Layout>
   );

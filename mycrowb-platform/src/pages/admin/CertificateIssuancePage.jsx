@@ -31,6 +31,12 @@ export default function CertificateIssuancePage() {
 
   const baseUploadUrl = useMemo(() => client.defaults.baseURL?.replace('/api/v1', '') || '', []);
 
+  const getPhotoUrl = (photoUrl) => {
+    if (!photoUrl) return '';
+    if (photoUrl.startsWith('http://') || photoUrl.startsWith('https://')) return photoUrl;
+    return `${baseUploadUrl}${photoUrl.startsWith('/') ? photoUrl : `/${photoUrl}`}`;
+  };
+
   const loadStaff = async () => {
     try {
       const response = await client.get('/staff');
@@ -173,7 +179,18 @@ export default function CertificateIssuancePage() {
             <tbody>
               {staffList.map((staff) => (
                 <tr className="border-b border-gray-200" key={staff.id}>
-                  <td className="p-2"><img alt={staff.name} className="h-20 w-20 rounded object-cover" src={`${baseUploadUrl}${staff.photoUrl}`} /></td>
+                  <td className="p-2">
+                    {staff.photoUrl ? (
+                      <img
+                        alt={staff.name}
+                        className="h-20 w-20 rounded object-cover"
+                        onError={(event) => { event.currentTarget.style.display = 'none'; }}
+                        src={getPhotoUrl(staff.photoUrl)}
+                      />
+                    ) : (
+                      <div className="flex h-20 w-20 items-center justify-center rounded bg-gray-100 text-xs text-gray-500">No photo</div>
+                    )}
+                  </td>
                   <td className="p-2">{staff.name}</td>
                   <td className="p-2">{staff.isActive ? 'Active' : 'Inactive'}</td>
                   <td className="p-2">{staff.address}</td>
