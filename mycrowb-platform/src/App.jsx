@@ -27,6 +27,8 @@ import RequireRole from './components/auth/RequireRole';
 import SuperAdminOverviewPage from './pages/admin/SuperAdminOverviewPage';
 import AdminNumbersPage from './pages/admin/AdminNumbersPage';
 import LoginActivitiesPage from './pages/admin/LoginActivitiesPage';
+import AdminTotalPage from './pages/admin/AdminTotalPage';
+import AdminFieldManagementPage from './pages/admin/AdminFieldManagementPage';
 
 export default function App() {
   return (
@@ -56,6 +58,8 @@ export default function App() {
       <Route path="/admin/analytics" element={<RequireRole roles={['ADMIN', 'SUPER_ADMIN']}><AnalyticsDashboardPage /></RequireRole>} />
       <Route path="/admin/routes" element={<RequireRole roles={['ADMIN', 'SUPER_ADMIN']}><RouteOptimizationPage /></RequireRole>} />
       <Route path="/admin/ratings" element={<RequireRole roles={['ADMIN', 'SUPER_ADMIN']}><RatingsDashboardPage /></RequireRole>} />
+      <Route path="/admin/total" element={<RequireRole roles={['ADMIN', 'SUPER_ADMIN']}><AdminTotalPage /></RequireRole>} />
+      <Route path="/admin/fields" element={<RequireRole roles={['ADMIN', 'SUPER_ADMIN']}><AdminFieldManagementPage /></RequireRole>} />
       <Route path="/super-admin/overview" element={<RequireRole roles={['SUPER_ADMIN']}><SuperAdminOverviewPage /></RequireRole>} />
       <Route path="/super-admin/admin-numbers" element={<RequireRole roles={['SUPER_ADMIN']}><AdminNumbersPage /></RequireRole>} />
       <Route path="/super-admin/login-activities" element={<RequireRole roles={['SUPER_ADMIN']}><LoginActivitiesPage /></RequireRole>} />
