@@ -29,20 +29,29 @@ const getShopCharges = (shop) => {
   };
 };
 
+const getRouteTimestamp = (route) => {
+  const value = route?.date || route?.sentAt;
+  const timestamp = value ? new Date(value).getTime() : 0;
+  return Number.isFinite(timestamp) ? timestamp : 0;
+};
+
 export default function TodayRoutePage() {
   const navigate = useNavigate();
   const [expandedRowId, setExpandedRowId] = useState('');
   const [message, setMessage] = useState('');
   const [staffPayConfig, setStaffPayConfig] = useState({ commissionPerShop: 0, salaryPerMonth: 0 });
+  const [selectedRouteIndex, setSelectedRouteIndex] = useState(0);
 
-  const route = useMemo(() => {
+  const routes = useMemo(() => {
     const user = JSON.parse(localStorage.getItem('user') || 'null');
     const assignments = JSON.parse(localStorage.getItem(STAFF_ASSIGNMENT_KEY) || '{}');
-    const allAssignments = Object.values(assignments);
-
-    const byUserStaffId = allAssignments.find((assignment) => assignment.staffIdNumber === user?.staffIdNumber);
-    return byUserStaffId || allAssignments[0] || null;
+    const allAssignments = Object.values(assignments || {}).filter(Boolean);
+    const byUserStaffId = allAssignments.filter((assignment) => assignment.staffIdNumber === user?.staffIdNumber);
+    const scopedAssignments = byUserStaffId.length ? byUserStaffId : allAssignments;
+    return scopedAssignments.sort((a, b) => getRouteTimestamp(b) - getRouteTimestamp(a));
   }, []);
+
+  const route = routes[selectedRouteIndex] || null;
 
   const [collectionByShopId, setCollectionByShopId] = useState(() => JSON.parse(localStorage.getItem(STAFF_COLLECTION_KEY) || '{}'));
 
@@ -220,6 +229,27 @@ export default function TodayRoutePage() {
         <p className="text-sm font-semibold text-gray-700">
           Vehicle: {route?.vehicleNumber || DEFAULT_ROUTE_META.vehicleNumber} | Cluster: {route?.clusterName || DEFAULT_ROUTE_META.clusterName} | Date: {route?.date || DEFAULT_ROUTE_META.date}
         </p>
+
+        {!!routes.length && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+            <label className="text-gray-700" htmlFor="route-select">Select route:</label>
+            <select
+              id="route-select"
+              className="rounded-md border border-gray-300 px-2 py-1"
+              value={selectedRouteIndex}
+              onChange={(event) => {
+                setExpandedRowId('');
+                setSelectedRouteIndex(Number(event.target.value));
+              }}
+            >
+              {routes.map((item, index) => (
+                <option key={item.id || `${item.staffIdNumber}-${item.date}-${index}`} value={index}>
+                  {item.date || item.sentAt?.slice(0, 10) || 'No date'} - {item.clusterName || 'Unknown cluster'} ({(item.shops || []).length} shops)
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {message && <p className="mt-3 rounded-md bg-gray-50 p-2 text-sm text-gray-700">{message}</p>}
 
