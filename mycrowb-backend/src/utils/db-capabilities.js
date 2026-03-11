@@ -2,6 +2,7 @@ const prisma = require('../config/prisma');
 
 let shopRegistrationReady;
 let loginActivityLocationReady;
+let collectionLocationReady;
 
 async function ensureShopRegistrationNumberColumn() {
   if (shopRegistrationReady) {
@@ -28,4 +29,17 @@ async function ensureLoginActivityLocationColumns() {
   loginActivityLocationReady = true;
 }
 
-module.exports = { ensureShopRegistrationNumberColumn, ensureLoginActivityLocationColumns };
+async function ensureCollectionLocationColumns() {
+  if (collectionLocationReady) return;
+
+  await prisma.$executeRawUnsafe('ALTER TABLE "Collection" ADD COLUMN IF NOT EXISTS "staffLatitude" DOUBLE PRECISION');
+  await prisma.$executeRawUnsafe('ALTER TABLE "Collection" ADD COLUMN IF NOT EXISTS "staffLongitude" DOUBLE PRECISION');
+
+  collectionLocationReady = true;
+}
+
+module.exports = {
+  ensureShopRegistrationNumberColumn,
+  ensureLoginActivityLocationColumns,
+  ensureCollectionLocationColumns
+};

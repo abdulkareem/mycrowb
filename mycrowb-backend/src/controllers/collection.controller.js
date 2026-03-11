@@ -1,5 +1,6 @@
 const prisma = require('../config/prisma');
 const { generateReceiptPdf } = require('../services/pdf.service');
+const { ensureCollectionLocationColumns } = require('../utils/db-capabilities');
 
 const MONTHS = [
   'jan', 'feb', 'mar', 'apr', 'may', 'jun',
@@ -32,6 +33,8 @@ async function updatePendingMonthsForShop(shopId, year) {
 
 async function markCollection(req, res, next) {
   try {
+    await ensureCollectionLocationColumns();
+
     const existing = await prisma.collection.findUnique({
       where: { id: req.params.id },
       include: { shop: true }
@@ -47,6 +50,8 @@ async function markCollection(req, res, next) {
         status: 'COLLECTED',
         amount,
         collectionDate: new Date(),
+        staffLatitude: req.body.staffLatitude === undefined ? undefined : Number(req.body.staffLatitude),
+        staffLongitude: req.body.staffLongitude === undefined ? undefined : Number(req.body.staffLongitude),
         imageProofUrl: req.file ? `/${req.file.path}` : undefined
       }
     });

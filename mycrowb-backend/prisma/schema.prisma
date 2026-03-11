@@ -140,6 +140,8 @@ model Collection {
   amount         Float
   collectionDate DateTime?
   imageProofUrl  String?
+  staffLatitude  Float?
+  staffLongitude Float?
   notes          String?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt

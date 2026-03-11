@@ -11,7 +11,8 @@ const superAdminModules = [
   { label: 'Route optimization', to: '/admin/routes' },
   { label: 'Ratings dashboard', to: '/admin/ratings' },
   { label: 'Add admin numbers', to: '/super-admin/admin-numbers' },
-  { label: 'Login activity logs', to: '/super-admin/login-activities' }
+  { label: 'Login activity logs', to: '/super-admin/login-activities' },
+  { label: 'Track staff', to: '/super-admin/track-staff' }
 ];
 
 export default function SuperAdminOverviewPage() {
