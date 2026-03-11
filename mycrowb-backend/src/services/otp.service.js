@@ -19,8 +19,11 @@ async function sendOtp(mobile) {
   const normalizedMobile = normalizeMobile(mobile);
 
   if (client && twilioVerifyServiceSid) {
-    await client.verify.v2.services(twilioVerifyServiceSid).verifications.create({ to: `+91${normalizedMobile}`, channel: 'sms' });
-    return { provider: 'twilio-verify' };
+    await client.verify.v2.services(twilioVerifyServiceSid).verifications.create({
+      to: `+91${normalizedMobile}`,
+      channel: 'whatsapp'
+    });
+    return { provider: 'twilio-verify-whatsapp' };
   }
 
   const code = `${Math.floor(100000 + Math.random() * 900000)}`;
