@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Popup, Tooltip, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Circle, Popup, Tooltip, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
-const colorByStatus = { collected: 'green', pending: 'yellow', missed: 'red' };
+const colorByStatus = { collected: '#22c55e', pending: '#f59e0b', missed: '#ef4444' };
 
 function FitMapToShops({ shops, staffLocation }) {
   const map = useMap();
@@ -37,17 +37,30 @@ export default function ShopMap({ shops, staffLocation }) {
               <p>Place: {s.place || '-'}</p>
               <p>Cluster: {s.clusterName || '-'}</p>
               <p>Status: {s.status}</p>
+              <p>Last update: {s.lastCollectionAt ? new Date(s.lastCollectionAt).toLocaleString() : 'No collection yet'}</p>
             </div>
           </Popup>
         </CircleMarker>
       ))}
       {staffLocation && (
-        <CircleMarker center={[staffLocation.latitude, staffLocation.longitude]} radius={9} pathOptions={{ color: 'blue' }}>
-          <Tooltip permanent direction="top" offset={[0, -10]}>Staff location</Tooltip>
-          <Popup>
-            <p className="text-xs font-semibold">Staff current location</p>
-          </Popup>
-        </CircleMarker>
+        <>
+          <Circle
+            center={[staffLocation.latitude, staffLocation.longitude]}
+            radius={180}
+            pathOptions={{ color: '#2563eb', fillColor: '#60a5fa', fillOpacity: 0.18 }}
+          />
+          <CircleMarker center={[staffLocation.latitude, staffLocation.longitude]} radius={11} pathOptions={{ color: '#1d4ed8', fillColor: '#2563eb', fillOpacity: 0.9 }}>
+            <Tooltip permanent direction="top" offset={[0, -14]}>🚚 Staff live location</Tooltip>
+            <Popup>
+              <div className="text-xs">
+                <p className="font-semibold">Staff current location</p>
+                <p>{staffLocation.staff?.name || '-'}</p>
+                <p>{staffLocation.staff?.mobile || '-'}</p>
+                <p>Updated: {staffLocation.updatedAt ? new Date(staffLocation.updatedAt).toLocaleString() : '-'}</p>
+              </div>
+            </Popup>
+          </CircleMarker>
+        </>
       )}
     </MapContainer>
   );
