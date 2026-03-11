@@ -10,12 +10,10 @@ const __dirname = path.dirname(__filename);
 
 const iconFileName = 'mycrowbemblem.png';
 const iconOutputPath = path.resolve(__dirname, 'public', iconFileName);
-const iconBase64Path = path.resolve(__dirname, '..', 'mycrowb-backend', 'src', 'assets', 'mycrowb-emblem.base64');
+const iconSourcePath = path.resolve(__dirname, '..', 'mycrowb-backend', 'src', 'assets', iconFileName);
 
 function ensurePwaIcon() {
-  const encoded = fs.readFileSync(iconBase64Path, 'utf8').trim();
-  const data = Buffer.from(encoded, 'base64');
-  fs.writeFileSync(iconOutputPath, data);
+  fs.copyFileSync(iconSourcePath, iconOutputPath);
 }
 
 ensurePwaIcon();
