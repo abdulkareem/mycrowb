@@ -6,6 +6,8 @@ import ShopMap from '../../components/map/ShopMap';
 
 export default function TrackStaffPage() {
   const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const backPath = user?.role === 'SUPER_ADMIN' ? '/super-admin/overview' : '/admin/overview';
   const [staffOptions, setStaffOptions] = useState([]);
   const [selectedStaffId, setSelectedStaffId] = useState('');
   const [details, setDetails] = useState(null);
@@ -80,7 +82,7 @@ export default function TrackStaffPage() {
       <section className="rounded-xl bg-white p-6 shadow-sm">
         <div className="mb-4 flex items-center justify-between gap-3">
           <p className="text-gray-700">Select a staff member to view live collection-linked location details.</p>
-          <button type="button" onClick={() => navigate('/super-admin/overview')} className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700">Back</button>
+          <button type="button" onClick={() => navigate(backPath)} className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700">Back</button>
         </div>
 
         <div className="mb-4">
