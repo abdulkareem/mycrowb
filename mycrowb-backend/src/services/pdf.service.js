@@ -5,7 +5,17 @@ const { appBaseUrl } = require('../config/env');
 const { createPdf } = require('../utils/pdf');
 
 const COMPANY_GREEN = '#2E7D32';
-const RECEIPT_MARGIN = 42.5; // 1.5 cm in points
+const DARK_TEXT = '#1A1A1A';
+const LIGHT_LINE = '#A5D6A7';
+const RECEIPT_MARGIN = 34;
+const CERTIFICATE_MARGIN = 38;
+const EMBLEM_IMAGE = path.join(__dirname, '..', 'assets', 'mycrowb-emblem.png');
+
+function valueOrFallback(value, fallback = '-') {
+  if (value === null || value === undefined) return fallback;
+  const normalized = String(value).trim();
+  return normalized.length ? normalized : fallback;
+}
 
 function formatCurrency(value) {
   const amount = Number(value || 0);
@@ -18,18 +28,28 @@ function formatDate(value) {
   return parsed.toLocaleDateString('en-IN');
 }
 
-function drawEmblem(doc, centerX, topY) {
-  const emblemPath = path.join(__dirname, '..', 'assets', 'mycrowb-emblem.png');
-  if (fs.existsSync(emblemPath)) {
-    doc.image(emblemPath, centerX - 42, topY, { fit: [84, 84], align: 'center' });
-    return topY + 90;
+function drawEmblem(doc, x, y, size = 72, opacity = 1) {
+  if (fs.existsSync(EMBLEM_IMAGE)) {
+    doc.save();
+    doc.opacity(opacity);
+    doc.image(EMBLEM_IMAGE, x, y, { fit: [size, size], align: 'center', valign: 'center' });
+    doc.restore();
+    return;
   }
 
   doc.save();
-  doc.circle(centerX, topY + 40, 38).lineWidth(1).stroke(COMPANY_GREEN);
-  doc.fontSize(11).fillColor(COMPANY_GREEN).text('MYCROWB', centerX - 32, topY + 35, { width: 64, align: 'center' });
+  doc.opacity(opacity);
+  doc.circle(x + (size / 2), y + (size / 2), size / 2.2).lineWidth(1).stroke(COMPANY_GREEN);
+  doc.fontSize(Math.max(8, size / 7)).fillColor(COMPANY_GREEN).text('MYCROWB', x, y + (size / 2) - 6, {
+    width: size,
+    align: 'center'
+  });
   doc.restore();
-  return topY + 90;
+}
+
+function drawSectionTitle(doc, title, x, y, width) {
+  doc.roundedRect(x, y, width, 18, 4).fillAndStroke('#EDF7EE', LIGHT_LINE);
+  doc.fillColor(COMPANY_GREEN).font('Helvetica-Bold').fontSize(10).text(title, x + 8, y + 5);
 }
 
 async function generateReceiptPdf({
@@ -60,132 +80,145 @@ async function generateReceiptPdf({
   const folder = persist ? path.join('uploads', 'receipts') : path.join('uploads', 'tmp');
   const filename = persist ? `${receiptNumber}.pdf` : `${receiptNumber}-${Date.now()}.pdf`;
   const filepath = path.join(folder, filename);
-
   const resolvedTotal = Number(totalAmount || (Number(amount || 0) + Number(gst || 0)));
   const verifyUrl = verificationUrl || `${appBaseUrl}/verify/receipt/${encodeURIComponent(receiptCode || receiptNumber)}`;
   const qrData = await QRCode.toDataURL(verifyUrl);
 
-  await createPdf(
-    filepath,
-    (doc) => {
-      const pageWidth = doc.page.width;
-      const pageHeight = doc.page.height;
+  await createPdf(filepath, (doc) => {
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
+    const contentWidth = pageWidth - (RECEIPT_MARGIN * 2);
 
-      doc.rect(RECEIPT_MARGIN - 10, RECEIPT_MARGIN - 10, pageWidth - (RECEIPT_MARGIN - 10) * 2, pageHeight - (RECEIPT_MARGIN - 10) * 2)
-        .lineWidth(1)
-        .stroke(COMPANY_GREEN);
+    doc.roundedRect(RECEIPT_MARGIN - 8, RECEIPT_MARGIN - 10, contentWidth + 16, pageHeight - (RECEIPT_MARGIN * 2) + 18, 10)
+      .lineWidth(1.2)
+      .strokeColor(COMPANY_GREEN)
+      .stroke();
 
-      let cursorY = drawEmblem(doc, pageWidth / 2, RECEIPT_MARGIN - 8);
+    drawEmblem(doc, (pageWidth / 2) - 38, RECEIPT_MARGIN - 2, 76);
 
-      doc.fontSize(15).fillColor('#000').text('MYCROWB YOUR ECO FRIEND LLP', RECEIPT_MARGIN, cursorY, { align: 'center' });
-      doc.fontSize(9)
-        .text('LLPIN: AAQ-4431', { align: 'center' })
-        .text('Katty Tower, Tirurangadi, Kerala – 676306', { align: 'center' })
-        .text('GST: 32ABMFM3589M1ZM', { align: 'center' })
-        .moveDown(0.2)
-        .text('DPIIT Startup Reg ID: DIPP46156', { align: 'center' })
-        .text('Kerala Startup Mission Reg ID: KSUM641', { align: 'center' })
-        .text('MSME Registration: UDYAM-KL-09-0017853', { align: 'center' });
+    doc.y = RECEIPT_MARGIN + 78;
+    doc.fillColor(DARK_TEXT).font('Helvetica-Bold').fontSize(15).text('MYCROWB YOUR ECO FRIEND LLP', RECEIPT_MARGIN, doc.y, {
+      width: contentWidth,
+      align: 'center'
+    });
+    doc.font('Helvetica').fontSize(9.4)
+      .text('LLPIN: AAQ-4431 | GST: 32ABMFM3589M1ZM', { align: 'center' })
+      .text('Katty Tower, Tirurangadi, Kerala - 676306', { align: 'center' })
+      .text('DPIIT: DIPP46156 | KSUM: KSUM641 | MSME: UDYAM-KL-09-0017853', { align: 'center' });
 
-      doc.moveDown(0.8);
-      doc.fontSize(16).fillColor(COMPANY_GREEN).text('Hair Waste Collection Payment Receipt', { align: 'center' });
-      doc.moveDown(0.5);
+    doc.moveDown(0.6);
+    doc.fillColor(COMPANY_GREEN).font('Times-Bold').fontSize(19).text('OFFICIAL PAYMENT RECEIPT', { align: 'center' });
 
-      const leftX = RECEIPT_MARGIN;
-      const rightX = pageWidth / 2 + 10;
-      let rowY = doc.y;
+    const headerY = doc.y + 8;
+    const halfWidth = (contentWidth - 14) / 2;
+    doc.roundedRect(RECEIPT_MARGIN, headerY, halfWidth, 46, 6).fillAndStroke('#F4FAF4', LIGHT_LINE);
+    doc.roundedRect(RECEIPT_MARGIN + halfWidth + 14, headerY, halfWidth, 46, 6).fillAndStroke('#F4FAF4', LIGHT_LINE);
 
-      doc.fontSize(10).fillColor('#111')
-        .text(`Receipt No: ${receiptNumber || '-'}`, leftX, rowY)
-        .text(`Receipt Date: ${formatDate(paymentDate)}`, rightX, rowY)
-        .text(`Payment Month: ${paymentMonth || '-'}`, leftX, doc.y + 3)
-        .text(`Collection Year: ${collectionYear || '-'}`, rightX, doc.y);
+    doc.fillColor(DARK_TEXT).font('Helvetica-Bold').fontSize(10.2)
+      .text(`Receipt No: ${valueOrFallback(receiptNumber)}`, RECEIPT_MARGIN + 10, headerY + 9)
+      .font('Helvetica').fontSize(9.5)
+      .text(`Receipt Date: ${formatDate(paymentDate)}`, RECEIPT_MARGIN + 10, headerY + 24)
+      .text(`Payment Month: ${valueOrFallback(paymentMonth)}`, RECEIPT_MARGIN + halfWidth + 24, headerY + 9)
+      .text(`Collection Year: ${valueOrFallback(collectionYear)}`, RECEIPT_MARGIN + halfWidth + 24, headerY + 24);
 
-      doc.moveDown(0.6);
-      doc.fontSize(11).fillColor(COMPANY_GREEN).text('Shop Information');
-      doc.moveDown(0.2);
+    let y = headerY + 62;
+    drawSectionTitle(doc, 'Shop Information', RECEIPT_MARGIN, y, contentWidth);
+    y += 24;
 
-      const info = [
-        ['Shop Reg.No', shopRegNo],
-        ['Shop Name', shopName],
-        ['Owner Name', ownerName],
-        ['Mobile Number', mobileNumber],
-        ['Room No.', roomNumber],
-        ['Building No.', buildingNumber],
-        ['Ward No.', wardNumber],
-        ['Local Body', localBody],
-        ['District', district],
-        ['State', state]
-      ];
+    const addressLine = [roomNumber, buildingNumber, wardNumber, localBody, district, state]
+      .filter(Boolean)
+      .join(', ');
 
-      info.forEach(([label, value]) => {
-        doc.fontSize(9.5).fillColor('#111').text(`${label}: ${value || '-'}`);
-      });
+    const shopRows = [
+      ['Shop Reg.No.', valueOrFallback(shopRegNo)],
+      ['Shop Name', valueOrFallback(shopName)],
+      ['Owner Name', valueOrFallback(ownerName)],
+      ['Mobile Number', valueOrFallback(mobileNumber)],
+      ['Address', valueOrFallback(addressLine)]
+    ];
 
-      doc.moveDown(0.6);
-      doc.fontSize(11).fillColor(COMPANY_GREEN).text('Payment Details');
-      doc.moveDown(0.2);
-
-      const tableX = RECEIPT_MARGIN;
-      const tableW = pageWidth - RECEIPT_MARGIN * 2;
-      const rowH = 22;
-      const amountColX = tableX + tableW - 130;
-      let tableY = doc.y;
-
-      doc.rect(tableX, tableY, tableW, rowH).stroke('#999');
-      doc.moveTo(amountColX, tableY).lineTo(amountColX, tableY + rowH).stroke('#999');
-      doc.fontSize(10).fillColor('#000').text('Description', tableX + 6, tableY + 7);
-      doc.text('Amount', amountColX + 6, tableY + 7);
-
-      tableY += rowH;
-      doc.rect(tableX, tableY, tableW, rowH).stroke('#999');
-      doc.moveTo(amountColX, tableY).lineTo(amountColX, tableY + rowH).stroke('#999');
-      doc.fontSize(9.5).text('Monthly Hair Waste Collection Fee', tableX + 6, tableY + 7);
-      doc.text(formatCurrency(amount), amountColX + 6, tableY + 7);
-
-      doc.y = tableY + rowH + 8;
-      doc.fontSize(9.5)
-        .text(`Subtotal: ${formatCurrency(amount)}`, { align: 'right' })
-        .text(`GST: ${formatCurrency(gst)}`, { align: 'right' })
-        .fillColor(COMPANY_GREEN)
-        .fontSize(10.5)
-        .text(`Total Amount Paid: ${formatCurrency(resolvedTotal)}`, { align: 'right' });
-
-      doc.moveDown(0.5).fillColor(COMPANY_GREEN).fontSize(11).text('Payment Information');
-      doc.moveDown(0.2).fillColor('#111').fontSize(9.5)
-        .text(`Payment Mode: ${paymentMode || 'Not specified'}`)
-        .text(`Transaction ID: ${transactionId || 'Not available'}`)
-        .text(`Collected By: ${collectorName || 'Not assigned'}`);
-
-      doc.moveDown(0.5).fillColor(COMPANY_GREEN).fontSize(11).text('Verification');
-      doc.moveDown(0.2).fillColor('#111').fontSize(9.5)
-        .text(`Receipt Code: ${receiptCode || receiptNumber || '-'}`)
-        .text(`Verification Link: ${verifyUrl}`);
-
-      const qrBuffer = Buffer.from(qrData.split(',')[1], 'base64');
-      doc.image(qrBuffer, pageWidth - RECEIPT_MARGIN - 90, doc.y - 8, { fit: [80, 80] });
-
-      doc.fontSize(8.5)
-        .fillColor('#555')
-        .text(
-          'This is a computer generated receipt issued by MYCROWB YOUR ECO FRIEND LLP and does not require handwritten signature or seal.',
-          RECEIPT_MARGIN,
-          pageHeight - RECEIPT_MARGIN - 20,
-          { align: 'center' }
-        );
-    },
-    {
-      size: 'A5',
-      margins: {
-        top: RECEIPT_MARGIN,
-        bottom: RECEIPT_MARGIN,
-        left: RECEIPT_MARGIN,
-        right: RECEIPT_MARGIN
+    shopRows.forEach(([label, value], index) => {
+      if (index % 2 === 0) {
+        doc.rect(RECEIPT_MARGIN + 1, y - 2, contentWidth - 2, 18).fill('#FBFDFB');
       }
+      doc.fillColor(DARK_TEXT).font('Helvetica-Bold').fontSize(9.4).text(`${label}:`, RECEIPT_MARGIN + 8, y, { width: 115 });
+      doc.font('Helvetica').text(value, RECEIPT_MARGIN + 124, y, { width: contentWidth - 132 });
+      y += 18;
+    });
+
+    y += 8;
+    drawSectionTitle(doc, 'Payment Details', RECEIPT_MARGIN, y, contentWidth);
+    y += 25;
+
+    const descColW = contentWidth - 140;
+    doc.rect(RECEIPT_MARGIN, y, contentWidth, 22).stroke('#9DBF9F');
+    doc.moveTo(RECEIPT_MARGIN + descColW, y).lineTo(RECEIPT_MARGIN + descColW, y + 22).stroke('#9DBF9F');
+    doc.font('Helvetica-Bold').fontSize(9.5).fillColor(DARK_TEXT)
+      .text('Description', RECEIPT_MARGIN + 8, y + 7)
+      .text('Amount', RECEIPT_MARGIN + descColW + 8, y + 7);
+
+    y += 22;
+    doc.rect(RECEIPT_MARGIN, y, contentWidth, 20).stroke('#9DBF9F');
+    doc.moveTo(RECEIPT_MARGIN + descColW, y).lineTo(RECEIPT_MARGIN + descColW, y + 20).stroke('#9DBF9F');
+    doc.font('Helvetica').fontSize(9.2)
+      .text('Monthly Hair Waste Collection Fee', RECEIPT_MARGIN + 8, y + 6)
+      .text(formatCurrency(amount), RECEIPT_MARGIN + descColW + 8, y + 6);
+
+    y += 26;
+    doc.font('Helvetica').fontSize(9.4).fillColor(DARK_TEXT)
+      .text(`Subtotal: ${formatCurrency(amount)}`, RECEIPT_MARGIN, y, { width: contentWidth, align: 'right' })
+      .text(`GST: ${formatCurrency(gst)}`, RECEIPT_MARGIN, y + 14, { width: contentWidth, align: 'right' });
+    doc.font('Helvetica-Bold').fontSize(10.5).fillColor(COMPANY_GREEN)
+      .text(`Total Amount Paid: ${formatCurrency(resolvedTotal)}`, RECEIPT_MARGIN, y + 30, { width: contentWidth, align: 'right' });
+
+    y += 50;
+    drawSectionTitle(doc, 'Verification & Collection Info', RECEIPT_MARGIN, y, contentWidth);
+    y += 24;
+
+    doc.fillColor(DARK_TEXT).font('Helvetica').fontSize(9.2)
+      .text(`Payment Mode: ${valueOrFallback(paymentMode, 'Not specified')}`, RECEIPT_MARGIN + 8, y)
+      .text(`Transaction ID: ${valueOrFallback(transactionId, 'Not available')}`, RECEIPT_MARGIN + 8, y + 14)
+      .text(`Collected By: ${valueOrFallback(collectorName, 'Not assigned')}`, RECEIPT_MARGIN + 8, y + 28)
+      .text(`Receipt Code: ${valueOrFallback(receiptCode || receiptNumber)}`, RECEIPT_MARGIN + 8, y + 42);
+
+    doc.fontSize(8.7).fillColor('#3E3E3E').text(`Verification Link: ${verifyUrl}`, RECEIPT_MARGIN + 8, y + 58, {
+      width: contentWidth - 110
+    });
+
+    const qrBuffer = Buffer.from(qrData.split(',')[1], 'base64');
+    doc.image(qrBuffer, pageWidth - RECEIPT_MARGIN - 90, y + 4, { fit: [82, 82] });
+
+    doc.font('Helvetica').fontSize(8.3).fillColor('#5C5C5C').text(
+      'This is a computer-generated receipt and does not require handwritten signature or seal.',
+      RECEIPT_MARGIN,
+      pageHeight - RECEIPT_MARGIN - 10,
+      { width: contentWidth, align: 'center' }
+    );
+  }, {
+    size: 'A4',
+    layout: 'portrait',
+    margins: {
+      top: RECEIPT_MARGIN,
+      bottom: RECEIPT_MARGIN,
+      left: RECEIPT_MARGIN,
+      right: RECEIPT_MARGIN
     }
-  );
+  });
 
   return filepath;
+}
+
+function drawCertificateBorder(doc) {
+  const { width, height } = doc.page;
+  doc.roundedRect(CERTIFICATE_MARGIN - 12, CERTIFICATE_MARGIN - 12, width - ((CERTIFICATE_MARGIN - 12) * 2), height - ((CERTIFICATE_MARGIN - 12) * 2), 14)
+    .lineWidth(1.4)
+    .strokeColor(COMPANY_GREEN)
+    .stroke();
+
+  doc.roundedRect(CERTIFICATE_MARGIN - 4, CERTIFICATE_MARGIN - 4, width - ((CERTIFICATE_MARGIN - 4) * 2), height - ((CERTIFICATE_MARGIN - 4) * 2), 10)
+    .lineWidth(0.7)
+    .strokeColor('#B7D8B8')
+    .stroke();
 }
 
 async function generateCertificatePdf({
@@ -214,144 +247,109 @@ async function generateCertificatePdf({
   const qrData = verifyUrl ? await QRCode.toDataURL(verifyUrl) : null;
 
   await createPdf(filepath, (doc) => {
-    drawCertificateBorder(doc);
-
-    const usableWidth = doc.page.width - (PAGE_MARGIN * 2);
-    const centerX = doc.page.width / 2;
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
+    const contentWidth = pageWidth - (CERTIFICATE_MARGIN * 2);
+    const leftX = CERTIFICATE_MARGIN;
     const locationCoordinates = latitude != null && longitude != null ? `${latitude}, ${longitude}` : 'Not available';
 
-    doc.save();
-    doc.opacity(0.05);
-    doc.image(EMBLEM_IMAGE, (doc.page.width - 220) / 2, (doc.page.height - 220) / 2, { width: 220 });
-    doc.restore();
+    drawCertificateBorder(doc);
+    drawEmblem(doc, (pageWidth - 230) / 2, (pageHeight - 230) / 2, 230, 0.06);
+    drawEmblem(doc, (pageWidth / 2) - 48, CERTIFICATE_MARGIN - 8, 96);
 
-    doc.image(EMBLEM_IMAGE, centerX - 52, 38, { width: 104 });
-
-    doc.y = 152;
-    doc.fillColor('#000').font('Helvetica-Bold').fontSize(15).text('MYCROWB YOUR ECO FRIEND LLP', PAGE_MARGIN, doc.y, {
-      width: usableWidth,
+    doc.y = CERTIFICATE_MARGIN + 92;
+    doc.fillColor(DARK_TEXT).font('Helvetica-Bold').fontSize(15).text('MYCROWB YOUR ECO FRIEND LLP', leftX, doc.y, {
+      width: contentWidth,
       align: 'center'
     });
-    doc.moveDown(0.35);
-    doc.font('Helvetica').fontSize(10.5).text('LLPIN: AAQ-4431', { align: 'center' });
-    doc.moveDown(0.15);
-    doc.text('Katty Tower, Tirurangadi, Kerala – 676306', { align: 'center' });
-    doc.moveDown(0.15);
-    doc.text('GST: 32ABMFM3589M1ZM', { align: 'center' });
-    doc.moveDown(0.55);
-    doc.fontSize(9.3)
-      .text('Department for Promotion of Industry and Internal Trade (DPIIT), Government of India – Reg. ID: DIPP46156', {
-        align: 'center'
-      })
-      .text('Kerala Startup Mission – Reg. ID: KSUM641', { align: 'center' })
-      .text('MSME Registration – UDYAM-KL-09-0017853', { align: 'center' })
-      .text('Kerala Startup Mission Climathon Award Winner', { align: 'center' });
+    doc.font('Helvetica').fontSize(10)
+      .text('LLPIN: AAQ-4431 | GST: 32ABMFM3589M1ZM', { align: 'center' })
+      .text('Katty Tower, Tirurangadi, Kerala - 676306', { align: 'center' })
+      .text('DPIIT Reg. ID: DIPP46156 | KSUM Reg. ID: KSUM641 | MSME: UDYAM-KL-09-0017853', { align: 'center' });
 
-    doc.moveDown(1);
-    doc.font('Times-Bold').fontSize(26).fillColor(ECO_GREEN).text('Hair Waste Recycling Certificate', {
+    doc.moveDown(0.85);
+    doc.font('Times-Bold').fontSize(27).fillColor(COMPANY_GREEN).text('Hair Waste Recycling Certificate', {
       align: 'center'
     });
 
-    doc.moveDown(0.8);
-    doc.font('Helvetica').fontSize(10.8).fillColor('#111').text(
-      'This is to certify that the following establishment is a registered participant in the Hair Waste Recycling Network of MYCROWB YOUR ECO FRIEND LLP, contributing to the responsible collection and recycling of salon/beauty parlour hair waste for eco-friendly applications.',
-      PAGE_MARGIN + 8,
+    doc.moveDown(0.45);
+    doc.font('Helvetica').fontSize(10.3).fillColor(DARK_TEXT).text(
+      'This certificate confirms that the following establishment is an approved participant in the MYCROWB Hair Waste Recycling Network and is committed to responsible waste collection and eco-friendly disposal practices.',
+      leftX + 8,
       doc.y,
-      { width: usableWidth - 16, align: 'center' }
+      { width: contentWidth - 16, align: 'center' }
     );
 
-    const tableStartY = doc.y + 16;
-    const leftX = PAGE_MARGIN + 16;
-    const labelWidth = 170;
-    const valueWidth = usableWidth - 32 - labelWidth;
-    const rowHeight = 18;
-
+    let y = doc.y + 14;
+    const labelWidth = 150;
+    const rowHeight = 17;
     const rows = [
       ['Shop Reg.No.', valueOrFallback(shopRegNo)],
       ['Shop Name', valueOrFallback(shopName, 'Community Barber Shop')],
       ['Owner Name', valueOrFallback(ownerName)],
       ['Mobile Number', valueOrFallback(ownerMobile)],
-      ['Beauty Parlour Category', valueOrFallback(category)],
+      ['Category', valueOrFallback(category)],
       ['Room No.', valueOrFallback(roomNo)],
       ['Building No.', valueOrFallback(buildingNo)],
       ['Ward No.', valueOrFallback(wardNo)],
-      ['Local Body Name', valueOrFallback(localBody)],
+      ['Local Body', valueOrFallback(localBody)],
       ['Address', valueOrFallback(address)],
-      ['District', valueOrFallback(district)],
-      ['State', valueOrFallback(state)],
+      ['District / State', `${valueOrFallback(district)} / ${valueOrFallback(state)}`],
       ['Location Coordinates', valueOrFallback(locationCoordinates)]
     ];
 
-    const tableHeight = rowHeight * rows.length;
-    doc.save();
-    doc.roundedRect(leftX - 8, tableStartY - 6, usableWidth - 16, tableHeight + 12, 6).lineWidth(0.8).strokeColor('#9CCC9C').stroke();
-    doc.restore();
+    doc.roundedRect(leftX, y - 6, contentWidth, (rows.length * rowHeight) + 12, 8).lineWidth(0.8).strokeColor(LIGHT_LINE).stroke();
 
     rows.forEach(([label, value], index) => {
-      const y = tableStartY + (index * rowHeight);
+      const rowY = y + (index * rowHeight);
       if (index % 2 === 0) {
-        doc.save();
-        doc.rect(leftX - 7, y - 2, usableWidth - 18, rowHeight).fillOpacity(0.05).fill('#2E7D32');
-        doc.restore();
+        doc.rect(leftX + 1, rowY - 1, contentWidth - 2, rowHeight).fill('#F8FCF8');
       }
-
-      doc.font('Helvetica-Bold').fontSize(10.1).fillColor('#1a1a1a').text(`${label}:`, leftX, y, {
-        width: labelWidth,
-        align: 'left'
-      });
-      doc.font('Helvetica').fontSize(10.1).text(value, leftX + labelWidth, y, {
-        width: valueWidth,
-        align: 'left'
-      });
+      doc.fillColor(DARK_TEXT).font('Helvetica-Bold').fontSize(9.8).text(`${label}:`, leftX + 8, rowY, { width: labelWidth });
+      doc.font('Helvetica').text(value, leftX + labelWidth + 8, rowY, { width: contentWidth - labelWidth - 16 });
     });
 
-    const detailsY = tableStartY + tableHeight + 14;
-    doc.font('Helvetica-Bold').fontSize(10.6).fillColor('#000')
-      .text(`Certificate Code: ${valueOrFallback(certificateCode, 'Not issued')}`, leftX, detailsY)
-      .text(`Issue Date: ${new Date(issueDate).toDateString()}`, leftX, doc.y + 2);
+    y += (rows.length * rowHeight) + 12;
+    doc.font('Helvetica-Bold').fontSize(10.2).fillColor(DARK_TEXT)
+      .text(`Certificate Code: ${valueOrFallback(certificateCode, 'Not issued')}`, leftX + 4, y)
+      .text(`Issue Date: ${new Date(issueDate).toDateString()}`, leftX + 4, y + 14);
 
-    doc.moveDown(0.45);
-    doc.font('Helvetica').fontSize(9.7).fillColor('#222').text(
-      'This certificate is valid for one year and may be cancelled if the shop discontinues participation in the Mycrowb hair waste recycling program for two months.',
-      leftX,
-      doc.y,
-      { width: usableWidth - 16 }
+    doc.font('Helvetica').fontSize(9.5).fillColor('#2D2D2D').text(
+      'This certificate remains valid for one year from the issue date and may be cancelled if participation in the Mycrowb program is discontinued for two consecutive months.',
+      leftX + 4,
+      y + 31,
+      { width: contentWidth - 120 }
     );
 
-    doc.moveDown(0.55);
-    doc.font('Helvetica-Bold').fontSize(10.2).text(`Verification Link: ${valueOrFallback(verifyUrl, 'Not available')}`, leftX, doc.y, {
-      width: usableWidth - 160
-    });
+    doc.font('Helvetica-Bold').fontSize(9.5).fillColor(COMPANY_GREEN).text(
+      `Verification Link: ${valueOrFallback(verifyUrl, 'Not available')}`,
+      leftX + 4,
+      y + 66,
+      { width: contentWidth - 120 }
+    );
 
     if (qrData) {
-      doc.image(Buffer.from(qrData.split(',')[1], 'base64'), doc.page.width - PAGE_MARGIN - 104, doc.y - 8, {
-        width: 90
-      });
+      doc.image(Buffer.from(qrData.split(',')[1], 'base64'), pageWidth - CERTIFICATE_MARGIN - 96, y + 36, { width: 88 });
     }
 
-    const footerY = doc.page.height - 68;
-    doc.font('Helvetica').fontSize(8.8).fillColor('#4a4a4a')
-      .text('This is a computer generated certificate and does not require handwritten signature or seal.', PAGE_MARGIN, footerY, {
-        width: usableWidth,
+    doc.font('Helvetica').fontSize(8.5).fillColor('#4E4E4E')
+      .text('This is a computer-generated certificate and does not require handwritten signature or seal.', leftX, pageHeight - CERTIFICATE_MARGIN - 30, {
+        width: contentWidth,
         align: 'center'
       })
-      .text('The certificate can be verified online using the certificate code or QR code.', {
-        width: usableWidth,
+      .font('Helvetica-Bold').fontSize(10.2).fillColor('#000')
+      .text('MYCROWB YOUR ECO FRIEND LLP', leftX, pageHeight - CERTIFICATE_MARGIN - 16, {
+        width: contentWidth,
         align: 'center'
       });
-
-    doc.font('Helvetica-Bold').fontSize(10.4).fillColor('#000').text('MYCROWB YOUR ECO FRIEND LLP', PAGE_MARGIN, doc.page.height - 26, {
-      width: usableWidth,
-      align: 'center'
-    });
   }, {
     size: 'A4',
     layout: 'portrait',
     margins: {
-      top: PAGE_MARGIN,
-      bottom: PAGE_MARGIN,
-      left: PAGE_MARGIN,
-      right: PAGE_MARGIN
+      top: CERTIFICATE_MARGIN,
+      bottom: CERTIFICATE_MARGIN,
+      left: CERTIFICATE_MARGIN,
+      right: CERTIFICATE_MARGIN
     }
   });
 
