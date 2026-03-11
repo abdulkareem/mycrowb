@@ -9,7 +9,7 @@ const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', year: 
 
 const chartConfigs = [
   { key: 'totalHairCollected', title: 'Hair collected monthly (kg)', color: '#2E7D32' },
-  { key: 'activeShops', title: 'Active barber shops', color: '#4CAF50' },
+  { key: 'activeShops', title: 'Active hair & beauty establishments', color: '#4CAF50' },
   { key: 'revenue', title: 'Revenue trend', color: '#6D4C41' },
   { key: 'certificatesIssued', title: 'Certificate issuance trend', color: '#A5D6A7' }
 ];

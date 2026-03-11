@@ -4,7 +4,7 @@ import Layout from '../../components/layout/Layout';
 import client from '../../api/client';
 
 const roles = [
-  { key: 'barber', label: 'Barber', dashboard: '/barber/dashboard' },
+  { key: 'barber', label: 'Hair Stylist', dashboard: '/barber/dashboard' },
   { key: 'staff', label: 'Staff', dashboard: '/staff/today-route' },
   { key: 'admin', label: 'Admin', dashboard: '/admin/overview' }
 ];

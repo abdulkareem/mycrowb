@@ -4,7 +4,7 @@ import client from '../../api/client';
 import Layout from '../../components/layout/Layout';
 
 const csvColumns = [
-  { key: 'whatsappNumber', required: true, description: 'Owner WhatsApp number (used as unique barber account id).' },
+  { key: 'whatsappNumber', required: true, description: 'Owner WhatsApp number (used as unique hair stylist account id).' },
   { key: 'ownerName', required: true, description: 'Owner full name.' },
   { key: 'shopName', required: true, description: 'Shop display name.' },
   { key: 'address', required: false, description: 'Full shop address.' },

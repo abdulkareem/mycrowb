@@ -134,7 +134,7 @@ export default function PaymentManagementPage() {
   return (
     <Layout title="Payment Management">
       <section className="rounded-xl bg-white p-6 shadow-sm">
-        <p className="text-gray-700">Verify monthly collections and generate receipts for barber shops.</p>
+        <p className="text-gray-700">Verify monthly collections and generate receipts for hair & beauty establishments.</p>
 
         <div className="mt-4 flex flex-wrap items-end gap-3">
           <div>

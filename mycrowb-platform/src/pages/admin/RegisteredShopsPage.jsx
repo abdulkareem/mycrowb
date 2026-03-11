@@ -4,7 +4,7 @@ import client from '../../api/client';
 import Layout from '../../components/layout/Layout';
 
 const categoryLabel = {
-  GENTS_BARBER_SHOP_SALOON: 'Gents barber shop / saloon',
+  GENTS_BARBER_SHOP_SALOON: 'Gents hair stylist shop / saloon',
   LADY_BEAUTY_PARLOUR: 'Lady beauty parlour',
   MIXED_LARGE_CORPORATE: 'Mixed / large / corporate'
 };

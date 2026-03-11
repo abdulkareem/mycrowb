@@ -511,7 +511,7 @@ async function listAdminPayments(req, res, next) {
 async function listMyCollections(req, res, next) {
   try {
     const shop = await prisma.barberShop.findUnique({ where: { ownerId: req.user.sub } });
-    if (!shop) return res.status(404).json({ message: 'Shop not found for barber' });
+    if (!shop) return res.status(404).json({ message: 'Shop not found for hair stylist' });
 
     const collections = await prisma.collection.findMany({
       where: { shopId: shop.id },

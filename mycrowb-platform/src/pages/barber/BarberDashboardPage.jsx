@@ -70,7 +70,7 @@ export default function BarberDashboardPage() {
   const starColor = stats.collectionPercent >= 100 ? 'text-green-600' : 'text-amber-500';
 
   return (
-    <Layout title="Barber Dashboard">
+    <Layout title="Hair Stylist Dashboard">
       <section className="rounded-xl bg-white p-6 shadow-sm">
         <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
           {quickActions.map((action) => {

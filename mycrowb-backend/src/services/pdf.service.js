@@ -285,7 +285,7 @@ async function generateCertificatePdf({
     const rowHeight = 15.5;
     const rows = [
       ['Shop Reg.No.', valueOrFallback(shopRegNo)],
-      ['Shop Name', valueOrFallback(shopName, 'Community Barber Shop')],
+      ['Shop Name', valueOrFallback(shopName, 'Community Hair & Beauty Establishment')],
       ['Owner Name', valueOrFallback(ownerName)],
       ['Mobile Number', valueOrFallback(ownerMobile)],
       ['Category', valueOrFallback(category)],

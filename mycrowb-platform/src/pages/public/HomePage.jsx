@@ -3,10 +3,10 @@ import Layout from '../../components/layout/Layout';
 
 const featureCards = [
   {
-    title: 'For barber shops',
+    title: 'For hair & beauty establishments',
     description: 'Track collection history, download receipts, and monitor eco-impact from one dashboard.',
     to: '/login?role=barber',
-    cta: 'Barber login'
+    cta: 'Hair Stylist login'
   },
   {
     title: 'For collection staff',
@@ -27,7 +27,7 @@ export default function HomePage() {
     <Layout title="Eco-recycling platform">
       <section className="space-y-4 rounded-xl bg-white p-6 shadow-sm">
         <p className="text-lg text-gray-700">
-          MYCROWB connects barber shops to a sustainable hair waste collection network and turns waste into measurable environmental impact.
+          MYCROWB connects hair & beauty establishments to a sustainable hair waste collection network and turns waste into measurable environmental impact.
         </p>
         <div className="flex flex-wrap gap-3">
           <Link to="/about" className="rounded-md bg-primaryGreen px-4 py-2 text-sm font-medium text-white hover:bg-leafGreen">

@@ -122,7 +122,7 @@ export default function ProfilePage() {
         <input name="registeredAssociationName" value={form.registeredAssociationName} onChange={handleChange} className="rounded-md border border-gray-300 p-2" placeholder="Registered association name" readOnly={readOnly} required />
         <select name="category" value={form.category} onChange={handleChange} className="rounded-md border border-gray-300 p-2" disabled={readOnly} required>
           <option value="">Select beauty shop category</option>
-          <option value="GENTS_BARBER_SHOP_SALOON">Gents barber shop / saloon</option>
+          <option value="GENTS_BARBER_SHOP_SALOON">Gents hair stylist shop / saloon</option>
           <option value="LADY_BEAUTY_PARLOUR">Lady beauty parlour</option>
           <option value="MIXED_LARGE_CORPORATE">Mixed / large / corporate</option>
         </select>
