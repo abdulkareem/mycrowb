@@ -199,7 +199,7 @@ async function listAdminPayments(req, res, next) {
     });
 
     const allYearCollections = await prisma.collection.findMany({
-      where: { year, collected: true },
+      where: { year, collected: true, paid: true },
       include: {
         shop: true
       }
@@ -209,18 +209,24 @@ async function listAdminPayments(req, res, next) {
       select: { clusterName: true }
     });
 
+    const activeStaffProfiles = await prisma.staffProfile.findMany({
+      where: { isActive: true },
+      select: { whatsappNumber: true }
+    });
+
+    const staffNumbers = [...new Set(activeStaffProfiles.map((staff) => staff.whatsappNumber).filter(Boolean))];
+
     const staffOptions = await prisma.user.findMany({
       where: {
         role: 'SERVICE_STAFF',
-        collections: {
-          some: {
-            year
-          }
+        mobile: {
+          in: staffNumbers.length ? staffNumbers : ['__NO_MATCH__']
         }
       },
       select: {
         id: true,
-        name: true
+        name: true,
+        mobile: true
       },
       orderBy: {
         name: 'asc'

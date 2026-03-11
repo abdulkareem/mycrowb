@@ -107,9 +107,9 @@ export default function PaymentManagementPage() {
               onChange={(event) => setCollectorId(event.target.value)}
               className="min-w-48 rounded border border-gray-300 px-2 py-1"
             >
-              <option value="">All staff</option>
+              <option value="">All active collection staff</option>
               {staffOptions.map((staff) => (
-                <option key={staff.id} value={staff.id}>{staff.name}</option>
+                <option key={staff.id} value={staff.id}>{staff.name} ({staff.mobile})</option>
               ))}
             </select>
           </div>
@@ -124,6 +124,10 @@ export default function PaymentManagementPage() {
         </div>
 
         {message && <p className="mt-3 text-sm text-gray-700">{message}</p>}
+
+        {collectorId && (
+          <p className="mt-2 text-sm text-gray-600">Showing payment details for selected collection staff.</p>
+        )}
 
         <div className="mt-4 overflow-x-auto">
           <table className="min-w-full border-collapse text-left text-sm">
@@ -220,7 +224,7 @@ export default function PaymentManagementPage() {
                   <td className="p-2" colSpan={6}>Year Total (All DB Data)</td>
                   {monthLabels.map((month) => {
                     const monthAllData = summary.monthlyTotalsAllData?.[month.key];
-                    return <td key={`year-${month.key}`} className="p-2 text-xs">₹{Number(monthAllData?.total || 0).toFixed(2)}</td>;
+                    return <td key={`year-${month.key}`} className="p-2 text-xs">₹{Number(monthAllData?.fee || 0).toFixed(2)} + GST ₹{Number(monthAllData?.gst || 0).toFixed(2)}</td>;
                   })}
                   <td className="p-2">-</td>
                   <td className="p-2">-</td>

@@ -9,6 +9,21 @@ const roleLabels = {
   admin: 'Admin'
 };
 
+function getBrowserLocation() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve({});
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+      () => resolve({}),
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  });
+}
+
 export default function OtpPage() {
   const navigate = useNavigate();
   const { state } = useLocation();
@@ -28,10 +43,12 @@ export default function OtpPage() {
     }
 
     try {
+      const location = await getBrowserLocation();
       const response = await client.post('/auth/verify-otp', {
         whatsappNumber: state?.whatsappNumber,
         code: otp,
-        role: state?.role
+        role: state?.role,
+        ...location
       });
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));

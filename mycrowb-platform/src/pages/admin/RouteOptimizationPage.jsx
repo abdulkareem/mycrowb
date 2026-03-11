@@ -67,6 +67,8 @@ export default function RouteOptimizationPage() {
       .map((shop) => ({
         id: shop.id,
         shopName: shop.shopName,
+        ownerName: shop.ownerName,
+        clusterName: shop.clusterName,
         latitude: Number(shop.latitude),
         longitude: Number(shop.longitude),
         status: 'pending'
@@ -148,6 +150,7 @@ export default function RouteOptimizationPage() {
                 <th className="p-2">Staff ID</th>
                 <th className="p-2">Staff Name</th>
                 <th className="p-2">Vehicle Number</th>
+                <th className="p-2">WhatsApp</th>
                 <th className="p-2">Cluster Selection</th>
                 <th className="p-2">Date Selection</th>
                 <th className="p-2">Action</th>
@@ -168,6 +171,7 @@ export default function RouteOptimizationPage() {
                     <td className="p-2">{staff.staffIdNumber}</td>
                     <td className="p-2">{staff.name}</td>
                     <td className="p-2">{staff.vehicleNumber || '-'}</td>
+                    <td className="p-2">{staff.whatsappNumber || '-'}</td>
                     <td className="p-2">
                       <select
                         className="w-full rounded-md border border-gray-300 px-2 py-1"
@@ -202,7 +206,7 @@ export default function RouteOptimizationPage() {
               })}
               {!activeStaffList.length && (
                 <tr>
-                  <td className="p-4 text-center text-gray-500" colSpan="6">No active staff records available.</td>
+                  <td className="p-4 text-center text-gray-500" colSpan="7">No active staff records available.</td>
                 </tr>
               )}
             </tbody>

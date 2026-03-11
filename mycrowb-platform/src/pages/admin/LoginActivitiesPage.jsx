@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import client from '../../api/client';
 import Layout from '../../components/layout/Layout';
+import ShopMap from '../../components/map/ShopMap';
 
 export default function LoginActivitiesPage() {
   const [rows, setRows] = useState([]);
@@ -12,6 +13,17 @@ export default function LoginActivitiesPage() {
       .then((response) => setRows(response.data))
       .catch((error) => setMessage(error.response?.data?.message || 'Unable to load login activities.'));
   }, []);
+
+  const mapPoints = useMemo(() => rows
+    .filter((row) => Number.isFinite(Number(row.latitude)) && Number.isFinite(Number(row.longitude)))
+    .map((row) => ({
+      id: row.id,
+      shopName: `${row.user?.name || row.mobile} (${row.role})`,
+      latitude: Number(row.latitude),
+      longitude: Number(row.longitude),
+      status: 'collected',
+      clusterName: row.locationLabel || 'Current location'
+    })), [rows]);
 
   return (
     <Layout title="Login Activity Logs">
@@ -26,6 +38,7 @@ export default function LoginActivitiesPage() {
                 <th className="p-2 text-left">Mobile</th>
                 <th className="p-2 text-left">Login Time</th>
                 <th className="p-2 text-left">Logout Time</th>
+                <th className="p-2 text-left">Location</th>
               </tr>
             </thead>
             <tbody>
@@ -36,10 +49,15 @@ export default function LoginActivitiesPage() {
                   <td className="p-2">{row.mobile}</td>
                   <td className="p-2">{new Date(row.loginAt).toLocaleString()}</td>
                   <td className="p-2">{row.logoutAt ? new Date(row.logoutAt).toLocaleString() : 'Active session'}</td>
+                  <td className="p-2">{row.locationLabel || (row.latitude && row.longitude ? `${row.latitude}, ${row.longitude}` : '-')}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="mt-4">
+          <h2 className="mb-2 text-base font-semibold">Login location map</h2>
+          {mapPoints.length ? <ShopMap shops={mapPoints} /> : <p className="text-sm text-gray-500">No location data available.</p>}
         </div>
       </section>
     </Layout>
