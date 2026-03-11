@@ -4,9 +4,9 @@ import Layout from '../../components/layout/Layout';
 import ShopMap from '../../components/map/ShopMap';
 import client from '../../api/client';
 import { downloadCsv } from '../../utils/exportCsv';
+import { BARBER_NOTIFICATION_KEY } from '../../utils/barberNotifications';
 
 const STAFF_ASSIGNMENT_KEY = 'mycrowb_staff_route_assignments';
-const BARBER_NOTIFICATION_KEY = 'mycrowb_barber_notifications';
 
 const normalizeCluster = (value = '') => value.trim().toLowerCase();
 

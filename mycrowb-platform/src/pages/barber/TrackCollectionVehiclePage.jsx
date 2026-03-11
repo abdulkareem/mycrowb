@@ -4,13 +4,6 @@ import client from '../../api/client';
 import Layout from '../../components/layout/Layout';
 import ShopMap from '../../components/map/ShopMap';
 
-function toMapShop(shop) {
-  return {
-    ...shop,
-    status: 'pending'
-  };
-}
-
 export default function TrackCollectionVehiclePage() {
   const [trackingData, setTrackingData] = useState({ routeShops: [], staffLocation: null, clusterName: '' });
   const [error, setError] = useState('');
@@ -21,7 +14,7 @@ export default function TrackCollectionVehiclePage() {
       .then((res) => {
         const data = res.data;
         setTrackingData({
-          routeShops: (data.routeShops || []).map(toMapShop),
+          routeShops: data.routeShops || [],
           staffLocation: data.staffLocation || null,
           clusterName: data.clusterName || ''
         });
@@ -38,6 +31,7 @@ export default function TrackCollectionVehiclePage() {
         <div className="mt-4 rounded-lg border border-gray-200 p-3 text-sm text-gray-700">
           <p><span className="font-medium">Cluster:</span> {trackingData.clusterName || '-'}</p>
           <p><span className="font-medium">Staff location:</span> {trackingData.staffLocation ? 'Live location available' : 'Not available yet'}</p>
+          <p><span className="font-medium">Collection updates:</span> Green shops are collected, yellow shops are pending.</p>
         </div>
 
         <div className="mt-4">

@@ -441,10 +441,27 @@ async function trackMyCollectionVehicle(req, res, next) {
       })
       : [];
 
+    const latestCollections = routeShops.length
+      ? await prisma.collection.findMany({
+        where: { shopId: { in: routeShops.map((shop) => shop.id) } },
+        orderBy: [{ updatedAt: 'desc' }],
+        select: { shopId: true, collected: true, collectionDate: true, updatedAt: true }
+      })
+      : [];
+
+    const latestCollectionByShopId = latestCollections.reduce((acc, item) => {
+      if (!acc[item.shopId]) acc[item.shopId] = item;
+      return acc;
+    }, {});
+
     return res.json({
       clusterName: myShop.clusterName,
       staffLocation,
-      routeShops
+      routeShops: routeShops.map((shop) => ({
+        ...shop,
+        status: latestCollectionByShopId[shop.id]?.collected ? 'collected' : 'pending',
+        lastCollectionAt: latestCollectionByShopId[shop.id]?.collectionDate || latestCollectionByShopId[shop.id]?.updatedAt || null
+      }))
     });
   } catch (error) {
     return next(error);

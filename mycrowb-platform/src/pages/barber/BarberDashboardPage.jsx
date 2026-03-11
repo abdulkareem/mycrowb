@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import client from '../../api/client';
 import Layout from '../../components/layout/Layout';
+import { hasUnreadNotifications, readAndPruneNotifications } from '../../utils/barberNotifications';
 
 const quickActions = [
   { label: 'Collection history', to: '/barber/collections' },
@@ -24,10 +25,20 @@ function StatCard({ label, value }) {
 export default function BarberDashboardPage() {
   const [shop, setShop] = useState(null);
   const [collections, setCollections] = useState([]);
+  const [hasUnread, setHasUnread] = useState(false);
 
   useEffect(() => {
     client.get('/shops/me').then((res) => setShop(res.data)).catch(() => setShop(null));
     client.get('/collections/my').then((res) => setCollections(res.data)).catch(() => setCollections([]));
+
+    const loadUnreadState = () => {
+      const notifications = readAndPruneNotifications();
+      setHasUnread(hasUnreadNotifications(notifications));
+    };
+
+    loadUnreadState();
+    window.addEventListener('storage', loadUnreadState);
+    return () => window.removeEventListener('storage', loadUnreadState);
   }, []);
 
   const stats = useMemo(() => {
@@ -62,11 +73,18 @@ export default function BarberDashboardPage() {
     <Layout title="Barber Dashboard">
       <section className="rounded-xl bg-white p-6 shadow-sm">
         <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
-          {quickActions.map((action) => (
-            <Link key={action.to} to={action.to} className="rounded-md border border-primaryGreen px-3 py-2 text-sm font-medium text-primaryGreen hover:bg-lightGreen/40">
-              {action.label}
-            </Link>
-          ))}
+          {quickActions.map((action) => {
+            const isNotificationAction = action.to === '/barber/notifications';
+            const actionClass = isNotificationAction && hasUnread
+              ? 'rounded-md border border-red-600 bg-red-50 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-100'
+              : 'rounded-md border border-primaryGreen px-3 py-2 text-sm font-medium text-primaryGreen hover:bg-lightGreen/40';
+
+            return (
+              <Link key={action.to} to={action.to} className={actionClass}>
+                {action.label}
+              </Link>
+            );
+          })}
         </div>
 
         <p className="text-gray-700">Monthly pickups, earnings, and sustainability points overview.</p>

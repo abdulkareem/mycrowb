@@ -10,6 +10,7 @@ function buildReceiptDownloadUrl(collectionId) {
 export default function CollectionHistoryPage() {
   const [collections, setCollections] = useState([]);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
     client
@@ -18,11 +19,39 @@ export default function CollectionHistoryPage() {
       .catch(() => setError('Unable to load collections from database.'));
   }, []);
 
+  const handleDownloadPdf = async (collectionId) => {
+    setMessage('');
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(buildReceiptDownloadUrl(collectionId), {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+
+      if (!response.ok) {
+        throw new Error('Receipt download failed');
+      }
+
+      const pdfBlob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(pdfBlob);
+      const anchor = document.createElement('a');
+      anchor.href = blobUrl;
+      anchor.download = `collection-receipt-${collectionId}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(blobUrl);
+      setMessage('Receipt PDF generated and downloaded successfully.');
+    } catch (_error) {
+      setMessage('Unable to download receipt PDF. Please try again.');
+    }
+  };
+
   return (
     <Layout title="Collection History">
       <section className="rounded-xl bg-white p-6 shadow-sm">
         <p className="text-gray-700">Collection data from database with admin verification status.</p>
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+        {message && <p className="mt-2 text-sm text-gray-700">{message}</p>}
 
         <div className="mt-4 overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -38,7 +67,6 @@ export default function CollectionHistoryPage() {
             <tbody>
               {collections.map((item) => {
                 const verified = Boolean(item.paid && item.receipt?.receiptNumber);
-                const url = buildReceiptDownloadUrl(item.id);
                 return (
                   <tr key={item.id} className="border-b">
                     <td className="p-2">{item.collectionDate ? new Date(item.collectionDate).toLocaleDateString() : '-'}</td>
@@ -47,9 +75,9 @@ export default function CollectionHistoryPage() {
                     <td className="p-2">{verified ? 'Verified' : 'Verification pending'}</td>
                     <td className="p-2">
                       {verified ? (
-                        <a className="rounded-md bg-primaryGreen px-3 py-1 text-xs text-white" href={url}>
+                        <button className="rounded-md bg-primaryGreen px-3 py-1 text-xs text-white" onClick={() => handleDownloadPdf(item.id)} type="button">
                           Download PDF
-                        </a>
+                        </button>
                       ) : (
                         <button className="cursor-not-allowed rounded-md bg-gray-200 px-3 py-1 text-xs text-gray-500" disabled>
                           Download PDF
