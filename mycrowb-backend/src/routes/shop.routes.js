@@ -9,6 +9,7 @@ const {
   toggleShop,
   deleteShop,
   getMyShop,
+  trackMyCollectionVehicle,
   updateMyShopProfile,
   requestProfileEdit,
   setProfileEditApproval
@@ -23,6 +24,7 @@ router.delete('/:id', authorize('ADMIN', 'SUPER_ADMIN'), deleteShop);
 router.get('/me', authorize('BARBER'), getMyShop);
 router.put('/me/profile', authorize('BARBER'), updateMyShopProfile);
 router.post('/me/request-edit', authorize('BARBER'), requestProfileEdit);
+router.get('/me/track-vehicle', authorize('BARBER'), trackMyCollectionVehicle);
 router.patch('/:id/edit-request', authorize('ADMIN', 'SUPER_ADMIN'), setProfileEditApproval);
 
 module.exports = router;
