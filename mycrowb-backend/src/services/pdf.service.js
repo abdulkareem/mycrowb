@@ -20,7 +20,7 @@ function valueOrFallback(value, fallback = '-') {
 
 function formatCurrency(value) {
   const amount = Number(value || 0);
-  return `₹ ${amount.toFixed(2)}`;
+  return `INR ${amount.toFixed(2)}`;
 }
 
 function applyCurrencyFont(doc) {
