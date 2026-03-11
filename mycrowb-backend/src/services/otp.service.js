@@ -19,6 +19,7 @@ const client = twilioAccountSid && twilioAuthToken ? twilio(twilioAccountSid, tw
 
 async function sendOtp(mobile) {
   const normalizedMobile = normalizeMobile(mobile);
+  const code = `${Math.floor(100000 + Math.random() * 900000)}`;
 
   if (client && twilioVerifyServiceSid) {
     await client.verify.v2.services(twilioVerifyServiceSid).verifications.create({
@@ -28,7 +29,12 @@ async function sendOtp(mobile) {
     return { provider: 'twilio-verify-whatsapp' };
   }
 
-  const code = `${Math.floor(100000 + Math.random() * 900000)}`;
+  if (whatsappPhoneNumberId && whatsappAccessToken && whatsappApiUrl) {
+    await sendWhatsAppPin(normalizedMobile, code);
+    memoryOtp.set(normalizedMobile, code);
+    return { provider: 'whatsapp-cloud-api' };
+  }
+
   memoryOtp.set(normalizedMobile, code);
   // eslint-disable-next-line no-console
   console.log(`Fallback OTP via ${smsFallbackSender} for ${normalizedMobile}: ${code}`);
