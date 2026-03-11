@@ -10,31 +10,27 @@ export default function CertificatesPage() {
     setMessage('');
     try {
       const response = await client.get('/certificates/my/latest');
-      const downloadUrl = `${client.defaults.baseURL.replace('/api/v1', '')}${response.data.pdfUrl}`;
-      const pdfResponse = await fetch(downloadUrl);
+      const downloadUrl = `${client.defaults.baseURL.replace('/api/v1', '')}/api/v1/certificates/my/latest/download`;
+      const token = localStorage.getItem('token');
+      const pdfResponse = await fetch(downloadUrl, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+
       if (!pdfResponse.ok) {
-        throw new Error('PDF download failed');
+        throw new Error('Certificate download failed');
       }
+
       const pdfBlob = await pdfResponse.blob();
       const blobUrl = window.URL.createObjectURL(pdfBlob);
-
-      const pdfWindow = window.open(blobUrl, '_blank', 'noopener,noreferrer');
-
-      if (!pdfWindow) {
-        const anchor = document.createElement('a');
-        anchor.href = blobUrl;
-        anchor.download = `mycrowb-certificate-${response.data.certificateCode}.pdf`;
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-      }
-
+      const anchor = document.createElement('a');
+      anchor.href = blobUrl;
+      anchor.download = `mycrowb-certificate-${response.data.certificateCode}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
       window.URL.revokeObjectURL(blobUrl);
-      if (response.data.isPlaceholder) {
-        setMessage(response.data.message || 'Blank certificate downloaded.');
-      } else {
-        setMessage('Latest certificate opened in a new tab.');
-      }
+
+      setMessage('Certificate generated and downloaded successfully.');
     } catch (err) {
       if (err?.response?.status === 401) {
         setMessage('Session expired or unauthorized. Please log in with a barber account and try again.');
@@ -51,7 +47,7 @@ export default function CertificatesPage() {
   return (
     <Layout title="Certificates">
       <section className="max-w-2xl rounded-xl bg-white p-6 shadow-sm">
-        <p className="text-gray-700">Download latest certificate PDF generated from database details with verification code.</p>
+        <p className="text-gray-700">Generate and download the latest certificate PDF from stored certificate data.</p>
         <div className="mt-4 flex flex-wrap gap-2">
           <button className="rounded-md bg-primaryGreen px-3 py-2 text-sm text-white" onClick={downloadLatestCertificate} type="button">
             Download latest certificate

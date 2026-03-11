@@ -34,20 +34,27 @@ export default function BarberDashboardPage() {
     const total = collections.length;
     const collected = collections.filter((item) => item.collected).length;
     const paid = collections.filter((item) => item.paid).length;
-    const pending = Math.max(0, 12 - paid);
     const missed = collections.filter((item) => item.status === 'MISSED').length;
-    const collectionPercent = total ? Math.round((collected / total) * 100) : 0;
+
+    const joinDate = shop?.joinedDate ? new Date(shop.joinedDate) : null;
+    const expectedMonths = joinDate
+      ? Math.max(0, (new Date().getFullYear() - joinDate.getFullYear()) * 12 + (new Date().getMonth() - joinDate.getMonth()) + 1)
+      : 12;
+
+    const pendingCollection = Math.max(0, expectedMonths - collected);
+    const pendingPayment = Math.max(0, expectedMonths - paid);
+    const collectionPercent = expectedMonths ? Math.round((collected / expectedMonths) * 100) : (total ? Math.round((collected / total) * 100) : 0);
     const stars = collectionPercent >= 100 ? 5 : Math.max(1, Math.ceil((collectionPercent / 100) * 5));
 
     return {
-      collectedMonths: paid,
-      pending,
-      paymentPending: pending,
+      collectedMonths: collected,
+      pending: pendingCollection,
+      paymentPending: pendingPayment,
       missed,
       collectionPercent,
       stars
     };
-  }, [collections]);
+  }, [collections, shop]);
 
   const starColor = stats.collectionPercent >= 100 ? 'text-green-600' : 'text-amber-500';
 
