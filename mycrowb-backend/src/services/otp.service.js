@@ -8,11 +8,10 @@ const {
   twilioWhatsappFrom,
   whatsappPhoneNumberId,
   whatsappAccessToken,
-  whatsappApiUrl,
-  whatsappTemplateName,
-  whatsappTemplateLanguage
+  whatsappApiUrl
 } = require('../config/env');
 const { normalizeMobile } = require('../utils/mobile');
+const prisma = require('../config/prisma');
 
 const memoryOtp = new Map();
 const client = twilioAccountSid && twilioAuthToken ? twilio(twilioAccountSid, twilioAuthToken) : null;
@@ -30,8 +29,7 @@ async function sendOtp(mobile) {
   }
 
   if (whatsappPhoneNumberId && whatsappAccessToken && whatsappApiUrl) {
-    await sendWhatsAppPin(normalizedMobile, code);
-    memoryOtp.set(normalizedMobile, code);
+    await sendWhatsAppOTP(normalizedMobile, code);
     return { provider: 'whatsapp-cloud-api' };
   }
 
@@ -49,6 +47,13 @@ async function verifyOtp(mobile, code) {
       .verificationChecks.create({ to: `+91${normalizedMobile}`, code });
     return result.status === 'approved';
   }
+  const user = await prisma.user.findUnique({
+    where: { mobile: normalizedMobile },
+    select: { userPin: true }
+  });
+
+  if (user?.userPin) return user.userPin === code;
+
   return memoryOtp.get(normalizedMobile) === code;
 }
 
@@ -81,52 +86,51 @@ function formatWhatsappRecipient(mobile) {
 }
 
 async function sendWhatsAppPin(phoneNumber, pin) {
+  return sendWhatsAppOTP(phoneNumber, pin);
+}
+
+async function sendWhatsAppOTP(phoneNumber, otp) {
   if (!whatsappPhoneNumberId || !whatsappAccessToken || !whatsappApiUrl) {
     throw new Error('Missing WhatsApp Cloud API configuration');
   }
 
   const recipient = formatWhatsappRecipient(phoneNumber);
   const url = `${whatsappApiUrl.replace(/\/$/, '')}/${whatsappPhoneNumberId}/messages`;
+  const otpCode = otp || `${Math.floor(100000 + Math.random() * 900000)}`;
 
-  const basePayload = {
+  const normalizedMobile = normalizeMobile(phoneNumber);
+
+  memoryOtp.set(normalizedMobile, otpCode);
+
+  await prisma.user.updateMany({
+    where: { mobile: normalizedMobile },
+    data: {
+      userPin: otpCode,
+      pinAttempts: 0,
+      pinCreatedAt: new Date()
+    }
+  });
+
+  const payload = {
     messaging_product: 'whatsapp',
     to: recipient,
     type: 'template',
     template: {
-      name: whatsappTemplateName,
-      language: { code: whatsappTemplateLanguage },
+      name: 'registration_otp',
+      language: { code: 'en_US' },
       components: [
         {
           type: 'body',
           parameters: [
-            { type: 'text', text: `${pin}` }
+            { type: 'text', text: 'MYCROWB Hair Waste Recycling Network' },
+            { type: 'text', text: otpCode }
           ]
         }
       ]
     }
   };
 
-  const withUrlButtonPayload = {
-    ...basePayload,
-    template: {
-      ...basePayload.template,
-      components: [
-        ...basePayload.template.components,
-        {
-          type: 'button',
-          sub_type: 'url',
-          index: '0',
-          parameters: [
-            { type: 'text', text: `${pin}` }
-          ]
-        }
-      ]
-    }
-  };
-
-  const withoutUrlButtonPayload = basePayload;
-
-  const postTemplatePayload = (payload) => axios.post(url, payload, {
+  const postTemplatePayload = () => axios.post(url, payload, {
     headers: {
       Authorization: `Bearer ${whatsappAccessToken}`,
       'Content-Type': 'application/json'
@@ -134,24 +138,11 @@ async function sendWhatsAppPin(phoneNumber, pin) {
   });
 
   try {
-    const response = await postTemplatePayload(withUrlButtonPayload);
-
+    const response = await postTemplatePayload();
+    // eslint-disable-next-line no-console
+    console.log('WhatsApp API response:', response.data);
     return response.data;
   } catch (error) {
-    const code = error.response?.data?.error?.code;
-    if (code === 132000) {
-      try {
-        const response = await postTemplatePayload(withoutUrlButtonPayload);
-        // eslint-disable-next-line no-console
-        console.warn('WhatsApp PIN delivery succeeded after retrying without URL button parameter', { recipient });
-        return response.data;
-      } catch (retryError) {
-        const retryDetails = retryError.response?.data || { message: retryError.message };
-        // eslint-disable-next-line no-console
-        console.error('WhatsApp PIN delivery retry failed', { recipient, details: retryDetails });
-      }
-    }
-
     const details = error.response?.data || { message: error.message };
     // eslint-disable-next-line no-console
     console.error('WhatsApp PIN delivery failed', { recipient, details });
@@ -163,4 +154,4 @@ async function sendWhatsAppPin(phoneNumber, pin) {
   }
 }
 
-module.exports = { sendOtp, verifyOtp, sendWhatsappMessage, sendWhatsAppPin };
+module.exports = { sendOtp, verifyOtp, sendWhatsappMessage, sendWhatsAppPin, sendWhatsAppOTP };
