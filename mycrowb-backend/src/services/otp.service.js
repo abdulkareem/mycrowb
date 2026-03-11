@@ -100,17 +100,6 @@ async function sendWhatsAppOTP(phoneNumber, otp) {
 
   const normalizedMobile = normalizeMobile(phoneNumber);
 
-  memoryOtp.set(normalizedMobile, otpCode);
-
-  await prisma.user.updateMany({
-    where: { mobile: normalizedMobile },
-    data: {
-      userPin: otpCode,
-      pinAttempts: 0,
-      pinCreatedAt: new Date()
-    }
-  });
-
   const payload = {
     messaging_product: 'whatsapp',
     to: recipient,
@@ -139,17 +128,39 @@ async function sendWhatsAppOTP(phoneNumber, otp) {
 
   try {
     const response = await postTemplatePayload();
+
+    memoryOtp.set(normalizedMobile, otpCode);
+
+    await prisma.user.updateMany({
+      where: { mobile: normalizedMobile },
+      data: {
+        userPin: otpCode,
+        pinAttempts: 0,
+        pinCreatedAt: new Date()
+      }
+    });
+
     // eslint-disable-next-line no-console
     console.log('WhatsApp API response:', response.data);
     return response.data;
   } catch (error) {
     const details = error.response?.data || { message: error.message };
-    // eslint-disable-next-line no-console
-    console.error('WhatsApp PIN delivery failed', { recipient, details });
+    const errorCode = details?.error?.code || error.code || null;
+    const fbtraceId = details?.error?.fbtrace_id || null;
 
-    const deliveryError = new Error('Failed to send OTP on WhatsApp. Please verify the number has joined WhatsApp and template is approved.');
+    // eslint-disable-next-line no-console
+    console.error('WhatsApp PIN delivery failed', {
+      recipient,
+      errorCode,
+      fbtraceId,
+      details
+    });
+
+    const deliveryError = new Error('Failed to send OTP on WhatsApp. Please retry in a moment and verify the number has joined WhatsApp and template is approved.');
     deliveryError.status = 502;
     deliveryError.details = details;
+    deliveryError.code = errorCode;
+    deliveryError.fbtraceId = fbtraceId;
     throw deliveryError;
   }
 }
