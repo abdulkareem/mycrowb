@@ -1,11 +1,20 @@
 const prisma = require('../config/prisma');
-const { sendOtp, verifyOtp } = require('../services/otp.service');
+const { sendOtp, verifyOtp, sendWhatsappMessage } = require('../services/otp.service');
 const { signToken } = require('../utils/jwt');
 const { mobileLookupVariants, normalizeMobile } = require('../utils/mobile');
 const { ensureLoginActivityLocationColumns } = require('../utils/db-capabilities');
 
 const notRegisteredMessage = 'User is not registered. Contact the company at mycrowbee@gmail.com.';
 const fallbackSuperAdminNumbers = new Set(['9747917623']);
+const MAX_PIN_ATTEMPTS = 4;
+
+function generatePin() {
+  return `${Math.floor(100000 + Math.random() * 900000)}`;
+}
+
+function buildPinMessage(pin) {
+  return `MYCROWB Login PIN\n\nYour secure login PIN is:\n\n${pin}\n\nUse this PIN to login to the Mycrowb Hair Waste Network portal.\n\nDo not share this PIN with anyone.`;
+}
 
 async function findAuthorizedAdminNumber(normalizedMobile) {
   if (!normalizedMobile) return null;
@@ -44,39 +53,107 @@ async function findExistingAdminUser(normalizedMobile) {
   });
 }
 
+async function getPortalUserByRole(role, normalizedMobile) {
+  if (role === 'barber') {
+    const registeredShop = await prisma.barberShop.findFirst({
+      where: {
+        whatsappNumber: {
+          in: mobileLookupVariants(normalizedMobile)
+        },
+        status: 'ACTIVE'
+      },
+      include: { owner: true }
+    });
+
+    if (!registeredShop?.owner) {
+      return null;
+    }
+
+    const owner = registeredShop.owner;
+    if (owner.mobile !== normalizedMobile) {
+      return prisma.user.update({
+        where: { id: owner.id },
+        data: { mobile: normalizedMobile }
+      });
+    }
+
+    return owner;
+  }
+
+  if (role === 'staff') {
+    const registeredStaff = await prisma.staffProfile.findFirst({
+      where: {
+        whatsappNumber: {
+          in: mobileLookupVariants(normalizedMobile)
+        },
+        isActive: true
+      }
+    });
+
+    if (!registeredStaff) {
+      return null;
+    }
+
+    let user = await prisma.user.findFirst({
+      where: {
+        mobile: {
+          in: mobileLookupVariants(normalizedMobile)
+        }
+      }
+    });
+
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          mobile: normalizedMobile,
+          name: registeredStaff.name,
+          role: 'SERVICE_STAFF'
+        }
+      });
+    }
+
+    const updates = {};
+    if (user.role !== 'SERVICE_STAFF') updates.role = 'SERVICE_STAFF';
+    if (user.name !== registeredStaff.name) updates.name = registeredStaff.name;
+    if (user.mobile !== normalizedMobile) updates.mobile = normalizedMobile;
+
+    if (Object.keys(updates).length) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: updates
+      });
+    }
+
+    return user;
+  }
+
+  return null;
+}
+
 async function requestOtp(req, res, next) {
   try {
     const { mobile, whatsappNumber, role } = req.body;
     const normalizedMobile = normalizeMobile(whatsappNumber || mobile);
 
-    if (role === 'barber') {
-      const registeredShop = await prisma.barberShop.findFirst({
-        where: {
-          whatsappNumber: {
-            in: mobileLookupVariants(normalizedMobile)
-          },
-          status: 'ACTIVE'
+    if (role === 'barber' || role === 'staff') {
+      const user = await getPortalUserByRole(role, normalizedMobile);
+      if (!user) {
+        return res.status(404).json({ message: notRegisteredMessage });
+      }
+
+      const newPin = generatePin();
+      await sendWhatsappMessage(normalizedMobile, buildPinMessage(newPin));
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          userPin: newPin,
+          pinAttempts: 0,
+          pinCreatedAt: new Date()
         }
       });
 
-      if (!registeredShop) {
-        return res.status(404).json({ message: notRegisteredMessage });
-      }
-    }
-
-    if (role === 'staff') {
-      const registeredStaff = await prisma.staffProfile.findFirst({
-        where: {
-          whatsappNumber: {
-            in: mobileLookupVariants(normalizedMobile)
-          },
-          isActive: true
-        }
-      });
-
-      if (!registeredStaff) {
-        return res.status(404).json({ message: notRegisteredMessage });
-      }
+      return res.json({ message: 'PIN sent successfully', pinRequested: true });
     }
 
     if (role === 'admin') {
@@ -89,9 +166,9 @@ async function requestOtp(req, res, next) {
     }
 
     await sendOtp(normalizedMobile);
-    res.json({ message: 'OTP sent successfully' });
+    return res.json({ message: 'OTP sent successfully' });
   } catch (error) {
-    next(error);
+    return next(error);
   }
 }
 
@@ -99,118 +176,127 @@ async function verifyOtpLogin(req, res, next) {
   try {
     const { mobile, whatsappNumber, code, name, role } = req.body;
     const normalizedMobile = normalizeMobile(whatsappNumber || mobile);
+
+    if (role !== 'admin') {
+      return res.status(400).json({ message: 'OTP verification is allowed for admin only.' });
+    }
+
     const valid = await verifyOtp(normalizedMobile, code);
     if (!valid) return res.status(400).json({ message: 'Invalid OTP' });
 
-    let user;
-    let tokenRole;
+    const authorizedAdmin = await findAuthorizedAdminNumber(normalizedMobile);
+    const existingAdminUser = await findExistingAdminUser(normalizedMobile);
 
-    if (role === 'barber') {
-      const shop = await prisma.barberShop.findFirst({
-        where: {
-          whatsappNumber: {
-            in: mobileLookupVariants(normalizedMobile)
-          }
-        },
-        include: { owner: true }
-      });
-
-      if (!shop?.owner) {
-        return res.status(404).json({ message: notRegisteredMessage });
-      }
-
-      user = shop.owner;
-      tokenRole = 'BARBER';
+    if (!authorizedAdmin && !existingAdminUser) {
+      return res.status(403).json({ message: 'This WhatsApp number is not authorized for admin login.' });
     }
 
-    if (role === 'admin') {
-      const authorizedAdmin = await findAuthorizedAdminNumber(normalizedMobile);
-      const existingAdminUser = await findExistingAdminUser(normalizedMobile);
+    let user = existingAdminUser;
 
-      if (!authorizedAdmin && !existingAdminUser) {
-        return res.status(403).json({ message: 'This WhatsApp number is not authorized for admin login.' });
-      }
+    const nextRole = authorizedAdmin
+      ? (authorizedAdmin.isSuperAdmin ? 'SUPER_ADMIN' : 'ADMIN')
+      : existingAdminUser.role;
 
-      user = existingAdminUser;
-
-      const nextRole = authorizedAdmin
-        ? (authorizedAdmin.isSuperAdmin ? 'SUPER_ADMIN' : 'ADMIN')
-        : existingAdminUser.role;
-
-      if (!user) {
-        user = await prisma.user.create({
-          data: {
-            mobile: normalizedMobile,
-            name: name || 'Admin User',
-            role: nextRole
-          }
-        });
-      } else if (user.role !== nextRole || (name && user.name !== name)) {
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            role: nextRole,
-            ...(name ? { name } : {})
-          }
-        });
-      }
-
-      tokenRole = nextRole;
-    }
-
-    if (role === 'staff') {
-      const registeredStaff = await prisma.staffProfile.findFirst({
-        where: {
-          whatsappNumber: {
-            in: mobileLookupVariants(normalizedMobile)
-          },
-          isActive: true
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          mobile: normalizedMobile,
+          name: name || 'Admin User',
+          role: nextRole
         }
       });
-
-      if (!registeredStaff) {
-        return res.status(404).json({ message: notRegisteredMessage });
-      }
-
-      user = await prisma.user.findFirst({
-        where: {
-          mobile: {
-            in: mobileLookupVariants(normalizedMobile)
-          }
+    } else if (user.role !== nextRole || (name && user.name !== name)) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          role: nextRole,
+          ...(name ? { name } : {})
         }
       });
-
-      if (!user) {
-        user = await prisma.user.create({
-          data: {
-            mobile: normalizedMobile,
-            name: registeredStaff.name,
-            role: 'SERVICE_STAFF'
-          }
-        });
-      }
-
-      if (user.role !== 'SERVICE_STAFF') {
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: { role: 'SERVICE_STAFF' }
-        });
-      }
-
-      tokenRole = 'SERVICE_STAFF';
     }
 
+    const token = signToken({ sub: user.id, role: nextRole, mobile: user.mobile });
+
+    await ensureLoginActivityLocationColumns();
+
+    const activity = await prisma.loginActivity.create({
+      data: {
+        userId: user.id,
+        mobile: user.mobile,
+        role: nextRole,
+        latitude: req.body.latitude !== undefined ? Number(req.body.latitude) : null,
+        longitude: req.body.longitude !== undefined ? Number(req.body.longitude) : null,
+        locationLabel: req.body.locationLabel || null
+      }
+    });
+
+    return res.json({ token, user: { ...user, role: nextRole }, sessionId: activity.id });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function loginWithPin(req, res, next) {
+  try {
+    const { mobile, whatsappNumber, pin, role } = req.body;
+    const normalizedMobile = normalizeMobile(whatsappNumber || mobile);
+
+    if (!['barber', 'staff'].includes(role)) {
+      return res.status(400).json({ message: 'PIN login is available only for Hair Stylist and Staff.' });
+    }
+
+    if (!/^\d{6}$/.test(`${pin || ''}`)) {
+      return res.status(400).json({ message: 'Please enter a valid 6 digit PIN.' });
+    }
+
+    let user = await getPortalUserByRole(role, normalizedMobile);
     if (!user) {
       return res.status(404).json({ message: notRegisteredMessage });
     }
 
-    if (name && user.name !== name) {
-      user = await prisma.user.update({
-        where: { id: user.id },
-        data: { name }
+    if (!user.userPin) {
+      return res.status(400).json({
+        message: 'PIN not requested yet. Please request PIN on WhatsApp first.',
+        requiresPinRequest: true
       });
     }
 
+    if ((user.pinAttempts || 0) >= MAX_PIN_ATTEMPTS) {
+      return res.status(403).json({
+        message: 'PIN attempts exceeded. Request a new PIN on WhatsApp.',
+        requiresPinReset: true,
+        attempts: user.pinAttempts
+      });
+    }
+
+    if (user.userPin !== pin) {
+      const updatedUser = await prisma.user.update({
+        where: { id: user.id },
+        data: { pinAttempts: { increment: 1 } },
+        select: { pinAttempts: true }
+      });
+
+      if (updatedUser.pinAttempts >= MAX_PIN_ATTEMPTS) {
+        return res.status(403).json({
+          message: 'PIN attempts exceeded. Request a new PIN on WhatsApp.',
+          requiresPinReset: true,
+          attempts: updatedUser.pinAttempts
+        });
+      }
+
+      return res.status(400).json({
+        message: 'Incorrect PIN. Try again.',
+        attempts: updatedUser.pinAttempts,
+        remainingAttempts: MAX_PIN_ATTEMPTS - updatedUser.pinAttempts
+      });
+    }
+
+    user = await prisma.user.update({
+      where: { id: user.id },
+      data: { pinAttempts: 0 }
+    });
+
+    const tokenRole = role === 'barber' ? 'BARBER' : 'SERVICE_STAFF';
     const token = signToken({ sub: user.id, role: tokenRole, mobile: user.mobile });
 
     await ensureLoginActivityLocationColumns();
@@ -228,7 +314,7 @@ async function verifyOtpLogin(req, res, next) {
 
     return res.json({ token, user: { ...user, role: tokenRole }, sessionId: activity.id });
   } catch (error) {
-    next(error);
+    return next(error);
   }
 }
 
@@ -262,7 +348,6 @@ async function logout(req, res, next) {
   }
 }
 
-
 async function checkAdminEligibility(req, res, next) {
   try {
     const normalizedMobile = normalizeMobile(req.query.mobile || req.query.whatsappNumber);
@@ -282,4 +367,4 @@ async function checkAdminEligibility(req, res, next) {
   }
 }
 
-module.exports = { requestOtp, verifyOtpLogin, me, logout, checkAdminEligibility };
+module.exports = { requestOtp, verifyOtpLogin, loginWithPin, me, logout, checkAdminEligibility };
