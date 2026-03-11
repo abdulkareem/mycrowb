@@ -15,7 +15,7 @@ const {
 } = require('../controllers/shop.controller');
 
 router.post('/upload-csv', authorize('ADMIN', 'SUPER_ADMIN'), upload.single('file'), uploadShopsCsv);
-router.get('/', authorize('ADMIN', 'SERVICE_STAFF'), listShops);
+router.get('/', authorize('ADMIN', 'SUPER_ADMIN', 'SERVICE_STAFF'), listShops);
 router.get('/export', authorize('ADMIN', 'SUPER_ADMIN'), exportShops);
 router.patch('/:id', authorize('ADMIN', 'SUPER_ADMIN'), updateShop);
 router.patch('/:id/toggle', authorize('ADMIN', 'SUPER_ADMIN'), toggleShop);

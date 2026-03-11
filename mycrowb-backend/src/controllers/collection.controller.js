@@ -211,17 +211,26 @@ async function listAdminPayments(req, res, next) {
 
     const activeStaffProfiles = await prisma.staffProfile.findMany({
       where: { isActive: true },
-      select: { whatsappNumber: true }
+      select: { whatsappNumber: true, mobileNumber: true }
     });
 
-    const staffNumbers = [...new Set(activeStaffProfiles.map((staff) => staff.whatsappNumber).filter(Boolean))];
+    const staffNumbers = [...new Set(
+      activeStaffProfiles
+        .flatMap((staff) => [staff.whatsappNumber, staff.mobileNumber])
+        .filter(Boolean)
+    )];
 
     const staffOptions = await prisma.user.findMany({
       where: {
         role: 'SERVICE_STAFF',
-        mobile: {
-          in: staffNumbers.length ? staffNumbers : ['__NO_MATCH__']
-        }
+        OR: [
+          { staff: { active: true } },
+          {
+            mobile: {
+              in: staffNumbers.length ? staffNumbers : ['__NO_MATCH__']
+            }
+          }
+        ]
       },
       select: {
         id: true,
