@@ -122,16 +122,28 @@ export default function RouteOptimizationPage() {
       vehicleNumber: selectedStaff.vehicleNumber,
       clusterName: selectedCluster,
       date: collectionDate,
-      shops: clusterShops.map((shop) => ({
-        id: shop.id,
-        shopRegistrationNumber: shop.shopRegistrationNumber,
-        shopName: shop.shopName,
-        ownerName: shop.ownerName,
-        place: shop.place,
-        whatsappNumber: shop.whatsappNumber,
-        latitude: Number(shop.latitude),
-        longitude: Number(shop.longitude)
-      })),
+      shops: clusterShops.map((shop) => {
+        const tippingFees = Number(shop.tippingFees || 0);
+        const gstPercentage = Number(shop.gstPercentage ?? 18);
+        const gst = Number(((tippingFees * gstPercentage) / 100).toFixed(2));
+        const total = Number((tippingFees + gst).toFixed(2));
+
+        return {
+          id: shop.id,
+          shopRegistrationNumber: shop.shopRegistrationNumber,
+          shopName: shop.shopName,
+          ownerName: shop.ownerName,
+          place: shop.place,
+          whatsappNumber: shop.whatsappNumber,
+          tippingFees,
+          gstPercentage,
+          gst,
+          total,
+          moneyCollected: total,
+          latitude: Number(shop.latitude),
+          longitude: Number(shop.longitude)
+        };
+      }),
       sentAt: new Date().toISOString()
     };
     localStorage.setItem(STAFF_ASSIGNMENT_KEY, JSON.stringify(assignments));
