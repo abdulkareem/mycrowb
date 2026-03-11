@@ -16,6 +16,11 @@ const isValidCoordinate = (latitude, longitude) => {
   return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
 };
 
+const readAssignments = () => {
+  const rawAssignments = JSON.parse(localStorage.getItem(STAFF_ASSIGNMENT_KEY) || '{}');
+  return Object.values(rawAssignments || {}).filter(Boolean);
+};
+
 export default function RouteOptimizationPage() {
   const [staffList, setStaffList] = useState([]);
   const [shops, setShops] = useState([]);
@@ -26,9 +31,10 @@ export default function RouteOptimizationPage() {
   const [message, setMessage] = useState('');
 
   const refreshSentAssignments = () => {
-    const assignments = JSON.parse(localStorage.getItem(STAFF_ASSIGNMENT_KEY) || '{}');
-    const byStaffId = Object.values(assignments).reduce((acc, assignment) => {
-      if (assignment.staffIdNumber) acc[assignment.staffIdNumber] = assignment;
+    const byStaffId = readAssignments().reduce((acc, assignment) => {
+      if (!assignment.staffIdNumber) return acc;
+      if (!acc[assignment.staffIdNumber]) acc[assignment.staffIdNumber] = [];
+      acc[assignment.staffIdNumber].push(assignment);
       return acc;
     }, {});
     setSentAssignmentsByStaffId(byStaffId);
@@ -119,7 +125,10 @@ export default function RouteOptimizationPage() {
     const collectionMonth = routeDate.getMonth() + 1;
     const collectionYear = routeDate.getFullYear();
 
-    assignments[selectedStaff.staffIdNumber] = {
+    const assignmentId = `${selectedStaff.staffIdNumber}-${collectionDate}-${Date.now()}`;
+
+    assignments[assignmentId] = {
+      id: assignmentId,
       staffIdNumber: selectedStaff.staffIdNumber,
       staffName: selectedStaff.name,
       staffMobileNumber: selectedStaff.mobileNumber,
@@ -173,7 +182,7 @@ export default function RouteOptimizationPage() {
     setMessage(`Route sent to ${selectedStaff.name}. Notifications prepared for ${clusterShops.length} shops.`);
   };
 
-  const isRouteSent = selectedStaff?.staffIdNumber ? Boolean(sentAssignmentsByStaffId[selectedStaff.staffIdNumber]) : false;
+  const sentRouteCount = selectedStaff?.staffIdNumber ? (sentAssignmentsByStaffId[selectedStaff.staffIdNumber]?.length || 0) : 0;
 
   return (
     <Layout title="Route Optimization Dashboard">
@@ -213,7 +222,7 @@ export default function RouteOptimizationPage() {
           <div className="flex items-end gap-2">
             <button type="button" className="rounded-md border border-gray-300 px-3 py-2 text-xs" onClick={handleExportShops} disabled={!clusterShops.length}>Import as Excel Sheet</button>
             <button type="button" className="rounded-md bg-primaryGreen px-3 py-2 text-xs font-medium text-white" onClick={handleSendToStaff}>
-              {isRouteSent ? 'Route already sent, change route' : 'Send to staff'}
+              {sentRouteCount ? `Send another route (${sentRouteCount} sent)` : 'Send to staff'}
             </button>
           </div>
         </div>
