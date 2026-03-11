@@ -52,6 +52,15 @@ function drawSectionTitle(doc, title, x, y, width) {
   doc.fillColor(COMPANY_GREEN).font('Helvetica-Bold').fontSize(10).text(title, x + 8, y + 5);
 }
 
+function drawSingleLineText(doc, text, x, y, width, align = 'left') {
+  doc.text(valueOrFallback(text), x, y, {
+    width,
+    align,
+    lineBreak: false,
+    ellipsis: true
+  });
+}
+
 async function generateReceiptPdf({
   receiptNumber,
   amount,
@@ -139,14 +148,14 @@ async function generateReceiptPdf({
 
     shopRows.forEach(([label, value], index) => {
       if (index % 2 === 0) {
-        doc.rect(RECEIPT_MARGIN + 1, y - 2, contentWidth - 2, 18).fill('#FBFDFB');
+        doc.rect(RECEIPT_MARGIN + 1, y - 2, contentWidth - 2, 16).fill('#FBFDFB');
       }
       doc.fillColor(DARK_TEXT).font('Helvetica-Bold').fontSize(9.4).text(`${label}:`, RECEIPT_MARGIN + 8, y, { width: 115 });
-      doc.font('Helvetica').text(value, RECEIPT_MARGIN + 124, y, { width: contentWidth - 132 });
-      y += 18;
+      drawSingleLineText(doc.font('Helvetica'), value, RECEIPT_MARGIN + 124, y, contentWidth - 132);
+      y += 16;
     });
 
-    y += 8;
+    y += 6;
     drawSectionTitle(doc, 'Payment Details', RECEIPT_MARGIN, y, contentWidth);
     y += 25;
 
@@ -171,28 +180,34 @@ async function generateReceiptPdf({
     doc.font('Helvetica-Bold').fontSize(10.5).fillColor(COMPANY_GREEN)
       .text(`Total Amount Paid: ${formatCurrency(resolvedTotal)}`, RECEIPT_MARGIN, y + 30, { width: contentWidth, align: 'right' });
 
-    y += 50;
+    y += 46;
     drawSectionTitle(doc, 'Verification & Collection Info', RECEIPT_MARGIN, y, contentWidth);
     y += 24;
 
     doc.fillColor(DARK_TEXT).font('Helvetica').fontSize(9.2)
       .text(`Payment Mode: ${valueOrFallback(paymentMode, 'Not specified')}`, RECEIPT_MARGIN + 8, y)
       .text(`Transaction ID: ${valueOrFallback(transactionId, 'Not available')}`, RECEIPT_MARGIN + 8, y + 14)
-      .text(`Collected By: ${valueOrFallback(collectorName, 'Not assigned')}`, RECEIPT_MARGIN + 8, y + 28)
-      .text(`Receipt Code: ${valueOrFallback(receiptCode || receiptNumber)}`, RECEIPT_MARGIN + 8, y + 42);
+      .text(`Collected By: ${valueOrFallback(collectorName, 'Not assigned')}`, RECEIPT_MARGIN + 8, y + 26)
+      .text(`Receipt Code: ${valueOrFallback(receiptCode || receiptNumber)}`, RECEIPT_MARGIN + 8, y + 40);
 
-    doc.fontSize(8.7).fillColor('#3E3E3E').text(`Verification Link: ${verifyUrl}`, RECEIPT_MARGIN + 8, y + 58, {
-      width: contentWidth - 110
-    });
+    drawSingleLineText(
+      doc.fontSize(8.7).fillColor('#3E3E3E'),
+      `Verification Link: ${verifyUrl}`,
+      RECEIPT_MARGIN + 8,
+      y + 54,
+      contentWidth - 110
+    );
 
     const qrBuffer = Buffer.from(qrData.split(',')[1], 'base64');
     doc.image(qrBuffer, pageWidth - RECEIPT_MARGIN - 90, y + 24, { fit: [82, 82] });
 
-    doc.font('Helvetica').fontSize(8.3).fillColor('#5C5C5C').text(
+    drawSingleLineText(
+      doc.font('Helvetica').fontSize(8.3).fillColor('#5C5C5C'),
       'This is a computer-generated receipt and does not require handwritten signature or seal.',
       RECEIPT_MARGIN,
-      pageHeight - RECEIPT_MARGIN - 24,
-      { width: contentWidth, align: 'center' }
+      pageHeight - RECEIPT_MARGIN - 38,
+      contentWidth,
+      'center'
     );
   }, {
     size: 'A4',
@@ -268,21 +283,21 @@ async function generateCertificatePdf({
       .text('DPIIT Reg. ID: DIPP46156 | KSUM Reg. ID: KSUM641 | MSME: UDYAM-KL-09-0017853', { align: 'center' });
 
     doc.moveDown(0.85);
-    doc.font('Times-Bold').fontSize(27).fillColor(COMPANY_GREEN).text('Hair Waste Recycling Certificate', {
+    doc.font('Times-Bold').fontSize(23).fillColor(COMPANY_GREEN).text('Hair Waste Recycling Certificate', {
       align: 'center'
     });
 
-    doc.moveDown(0.45);
-    doc.font('Helvetica').fontSize(10.3).fillColor(DARK_TEXT).text(
+    doc.moveDown(0.25);
+    doc.font('Helvetica').fontSize(9.5).fillColor(DARK_TEXT).text(
       'This certificate confirms that the following establishment is an approved participant in the MYCROWB Hair Waste Recycling Network and is committed to responsible waste collection and eco-friendly disposal practices.',
       leftX + 8,
       doc.y,
       { width: contentWidth - 16, align: 'center' }
     );
 
-    let y = doc.y + 14;
+    let y = doc.y + 10;
     const labelWidth = 150;
-    const rowHeight = 15.5;
+    const rowHeight = 12;
     const rows = [
       ['Shop Reg.No.', valueOrFallback(shopRegNo)],
       ['Shop Name', valueOrFallback(shopName, 'Community Barber Shop')],
@@ -305,43 +320,52 @@ async function generateCertificatePdf({
       if (index % 2 === 0) {
         doc.rect(leftX + 1, rowY - 1, contentWidth - 2, rowHeight).fill('#F8FCF8');
       }
-      doc.fillColor(DARK_TEXT).font('Helvetica-Bold').fontSize(9.8).text(`${label}:`, leftX + 8, rowY, { width: labelWidth });
-      doc.font('Helvetica').text(value, leftX + labelWidth + 8, rowY, { width: contentWidth - labelWidth - 16 });
+      doc.fillColor(DARK_TEXT).font('Helvetica-Bold').fontSize(9.5).text(`${label}:`, leftX + 8, rowY, { width: labelWidth });
+      drawSingleLineText(doc.font('Helvetica').fontSize(9.5), value, leftX + labelWidth + 8, rowY, contentWidth - labelWidth - 16);
     });
 
-    y += (rows.length * rowHeight) + 12;
-    doc.font('Helvetica-Bold').fontSize(10.2).fillColor(DARK_TEXT)
+    y += (rows.length * rowHeight) + 8;
+    doc.font('Helvetica-Bold').fontSize(9.5).fillColor(DARK_TEXT)
       .text(`Certificate Code: ${valueOrFallback(certificateCode, 'Not issued')}`, leftX + 4, y)
-      .text(`Issue Date: ${new Date(issueDate).toDateString()}`, leftX + 4, y + 14);
+      .text(`Issue Date: ${new Date(issueDate).toDateString()}`, leftX + 4, y + 12);
 
-    doc.font('Helvetica').fontSize(9.5).fillColor('#2D2D2D').text(
+    drawSingleLineText(
+      doc.font('Helvetica').fontSize(8.6).fillColor('#2D2D2D'),
       'This certificate remains valid for one year from the issue date and may be cancelled if participation in the Mycrowb program is discontinued for two consecutive months.',
       leftX + 4,
-      y + 26,
-      { width: contentWidth - 120 }
+      y + 24,
+      contentWidth - 120
     );
 
-    doc.font('Helvetica-Bold').fontSize(9.5).fillColor(COMPANY_GREEN).text(
+    drawSingleLineText(
+      doc.font('Helvetica-Bold').fontSize(9.1).fillColor(COMPANY_GREEN),
       `Verification Link: ${valueOrFallback(verifyUrl, 'Not available')}`,
       leftX + 4,
-      y + 57,
-      { width: contentWidth - 120 }
+      y + 36,
+      contentWidth - 120
     );
 
     if (qrData) {
-      doc.image(Buffer.from(qrData.split(',')[1], 'base64'), pageWidth - CERTIFICATE_MARGIN - 96, y + 34, { width: 88 });
+      doc.image(Buffer.from(qrData.split(',')[1], 'base64'), pageWidth - CERTIFICATE_MARGIN - 80, y + 10, { width: 72 });
     }
 
-    doc.font('Helvetica').fontSize(8.5).fillColor('#4E4E4E')
-      .text('This is a computer-generated certificate and does not require handwritten signature or seal.', leftX, pageHeight - CERTIFICATE_MARGIN - 34, {
-        width: contentWidth,
-        align: 'center'
-      })
-      .font('Helvetica-Bold').fontSize(10.2).fillColor('#000')
-      .text('MYCROWB YOUR ECO FRIEND LLP', leftX, pageHeight - CERTIFICATE_MARGIN - 20, {
-        width: contentWidth,
-        align: 'center'
-      });
+    drawSingleLineText(
+      doc.font('Helvetica').fontSize(8.5).fillColor('#4E4E4E'),
+      'This is a computer-generated certificate and does not require handwritten signature or seal.',
+      leftX,
+      pageHeight - CERTIFICATE_MARGIN - 42,
+      contentWidth,
+      'center'
+    );
+
+    drawSingleLineText(
+      doc.font('Helvetica-Bold').fontSize(10.2).fillColor('#000'),
+      'MYCROWB YOUR ECO FRIEND LLP',
+      leftX,
+      pageHeight - CERTIFICATE_MARGIN - 28,
+      contentWidth,
+      'center'
+    );
   }, {
     size: 'A4',
     layout: 'portrait',
