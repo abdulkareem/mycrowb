@@ -13,6 +13,7 @@ const {
 } = require('../controllers/collection.controller');
 
 router.get('/my', authorize('BARBER'), listMyCollections);
+router.get('/staff/route-status', authorize('SERVICE_STAFF', 'ADMIN', 'SUPER_ADMIN'), listStaffRouteStatuses);
 router.get('/admin/payments', authorize('ADMIN', 'SUPER_ADMIN'), listAdminPayments);
 router.get('/:id/receipt-download', authorize('BARBER'), downloadMyReceipt);
 router.patch('/admin/payments/:shopId/:month/verify', authorize('ADMIN', 'SUPER_ADMIN'), verifyShopPayment);
