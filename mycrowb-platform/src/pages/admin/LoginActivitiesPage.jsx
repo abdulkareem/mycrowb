@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import client from '../../api/client';
 import Layout from '../../components/layout/Layout';
 import ShopMap from '../../components/map/ShopMap';
 
 export default function LoginActivitiesPage() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [message, setMessage] = useState('');
 
@@ -28,6 +30,11 @@ export default function LoginActivitiesPage() {
   return (
     <Layout title="Login Activity Logs">
       <section className="rounded-xl bg-white p-6 shadow-sm">
+        <div className="mb-3 flex justify-end">
+          <button className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700" onClick={() => navigate('/super-admin/overview')} type="button">
+            Back
+          </button>
+        </div>
         {message && <p className="mb-3 text-sm text-red-600">{message}</p>}
         <div className="overflow-x-auto">
           <table className="min-w-full border border-gray-200 text-sm">

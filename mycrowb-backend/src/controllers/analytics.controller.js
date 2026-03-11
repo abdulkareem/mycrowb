@@ -22,13 +22,16 @@ function monthKey(year, month) {
 
 async function trends(_req, res, next) {
   try {
-    const [collections, certificates] = await Promise.all([
+    const [collections, certificates, shops] = await Promise.all([
       prisma.collection.findMany({
         where: { collected: true },
         select: { month: true, year: true, amount: true, hairWeight: true, shopId: true }
       }),
       prisma.certificate.findMany({
         select: { issueDate: true }
+      }),
+      prisma.barberShop.findMany({
+        select: { id: true, status: true, registrationDate: true }
       })
     ]);
 
@@ -42,15 +45,13 @@ async function trends(_req, res, next) {
           month: collection.month,
           totalHairCollected: 0,
           revenue: 0,
-          certificatesIssued: 0,
-          activeShopIds: new Set()
+          certificatesIssued: 0
         });
       }
 
       const current = monthlyMap.get(key);
       current.totalHairCollected += collection.hairWeight;
       current.revenue += collection.amount;
-      current.activeShopIds.add(collection.shopId);
     });
 
     certificates.forEach((certificate) => {
@@ -65,8 +66,7 @@ async function trends(_req, res, next) {
           month,
           totalHairCollected: 0,
           revenue: 0,
-          certificatesIssued: 0,
-          activeShopIds: new Set()
+          certificatesIssued: 0
         });
       }
 
@@ -76,14 +76,22 @@ async function trends(_req, res, next) {
 
     const analytics = Array.from(monthlyMap.values())
       .sort((a, b) => (a.year - b.year) || (a.month - b.month))
-      .map((entry) => ({
-        year: entry.year,
-        month: entry.month,
-        totalHairCollected: Number(entry.totalHairCollected.toFixed(2)),
-        revenue: Number(entry.revenue.toFixed(2)),
-        activeShops: entry.activeShopIds.size,
-        certificatesIssued: entry.certificatesIssued
-      }));
+      .map((entry) => {
+        const monthEnd = new Date(Date.UTC(entry.year, entry.month, 0, 23, 59, 59, 999));
+        const activeShops = shops.filter((shop) => (
+          shop.status === 'ACTIVE'
+          && new Date(shop.registrationDate) <= monthEnd
+        )).length;
+
+        return {
+          year: entry.year,
+          month: entry.month,
+          totalHairCollected: Number(entry.totalHairCollected.toFixed(2)),
+          revenue: Number(entry.revenue.toFixed(2)),
+          activeShops,
+          certificatesIssued: entry.certificatesIssued
+        };
+      });
 
     res.json(analytics);
   } catch (error) {
