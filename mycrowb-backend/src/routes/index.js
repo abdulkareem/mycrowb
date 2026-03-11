@@ -10,5 +10,6 @@ router.use('/ratings', require('./rating.routes'));
 router.use('/predictions', require('./prediction.routes'));
 router.use('/staff', require('./staff.routes'));
 router.use('/super-admin', require('./super-admin.routes'));
+router.use('/track-staff', require('./track-staff.routes'));
 
 module.exports = router;
