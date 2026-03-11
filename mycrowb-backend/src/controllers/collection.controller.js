@@ -181,6 +181,134 @@ async function verifyShopPayment(req, res, next) {
   }
 }
 
+
+async function markCollectionByShopMonth(req, res, next) {
+  try {
+    await ensureCollectionLocationColumns();
+
+    const month = Number(req.params.month);
+    const year = Number(req.body.year || new Date().getFullYear());
+
+    if (!month || month < 1 || month > 12) {
+      return res.status(400).json({ message: 'Invalid month' });
+    }
+
+    const shop = await prisma.barberShop.findUnique({ where: { id: req.params.shopId } });
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+
+    const { tippingFee, gst } = getShopCharges(shop);
+    const tippingFeeCollected = req.body.tippingFeeCollected === undefined ? tippingFee : Number(req.body.tippingFeeCollected);
+    const gstCollected = req.body.gstCollected === undefined ? gst : Number(req.body.gstCollected);
+    const amount = Number((tippingFeeCollected + gstCollected).toFixed(2));
+
+    const existing = await prisma.collection.findFirst({
+      where: { shopId: req.params.shopId, month, year }
+    });
+
+    const payload = {
+      collectorId: existing?.collectorId || req.user.sub,
+      month,
+      year,
+      hairWeight: Number(req.body.hairWeight),
+      collected: true,
+      status: 'COLLECTED',
+      amount,
+      tippingFeeCollected,
+      gstCollected,
+      collectionDate: req.body.collectionDate ? new Date(req.body.collectionDate) : new Date(),
+      paymentDate: req.body.paymentDate ? new Date(req.body.paymentDate) : new Date(),
+      staffLatitude: req.body.staffLatitude === undefined ? undefined : Number(req.body.staffLatitude),
+      staffLongitude: req.body.staffLongitude === undefined ? undefined : Number(req.body.staffLongitude),
+      imageProofUrl: req.file ? `/${req.file.path}` : undefined
+    };
+
+    const collection = existing
+      ? await prisma.collection.update({ where: { id: existing.id }, data: payload })
+      : await prisma.collection.create({ data: { ...payload, shopId: req.params.shopId } });
+
+    await updatePendingMonthsForShop(collection.shopId, collection.year);
+    return res.json(collection);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function issueReceipt(req, res, next) {
+  try {
+    const month = Number(req.params.month);
+    const year = Number(req.body.year || new Date().getFullYear());
+
+    if (!month || month < 1 || month > 12) {
+      return res.status(400).json({ message: 'Invalid month' });
+    }
+
+    const collection = await prisma.collection.findFirst({
+      where: {
+        shopId: req.params.shopId,
+        month,
+        year,
+        collected: true
+      },
+      include: {
+        shop: true,
+        collector: true,
+        receipt: true
+      }
+    });
+
+    if (!collection) {
+      return res.status(404).json({ message: 'Collected record not found for this month' });
+    }
+
+    const { total } = getShopCharges(collection.shop);
+    const paymentDate = new Date();
+    const receiptNumber = collection.receipt?.receiptNumber || `R-${Date.now()}-${month}`;
+
+    const updatedCollection = await prisma.collection.update({
+      where: { id: collection.id },
+      data: {
+        paid: true,
+        amount: total,
+        paymentDate
+      }
+    });
+
+    const pdfUrl = await generateReceiptPdf({
+      receiptNumber,
+      amount: total,
+      paymentDate,
+      shopName: collection.shop.shopName,
+      collectorName: collection.collector?.name,
+      collectorMobile: collection.collector?.mobile
+    });
+
+    const receipt = await prisma.receipt.upsert({
+      where: { collectionId: collection.id },
+      update: { receiptNumber, amount: total, paymentDate, pdfUrl },
+      create: {
+        collectionId: collection.id,
+        receiptNumber,
+        amount: total,
+        paymentDate,
+        pdfUrl
+      }
+    });
+
+    const pendingMonths = await updatePendingMonthsForShop(collection.shopId, year);
+
+    return res.json({
+      message: 'Receipt issued and saved in database',
+      collection: updatedCollection,
+      receipt,
+      pendingMonths
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function listAdminPayments(req, res, next) {
   try {
     const year = Number(req.query.year || new Date().getFullYear());
@@ -412,6 +540,8 @@ module.exports = {
   markCollection,
   markPayment,
   verifyShopPayment,
+  markCollectionByShopMonth,
+  issueReceipt,
   listAdminPayments,
   listMyCollections
 };

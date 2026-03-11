@@ -5,6 +5,8 @@ const {
   markCollection,
   markPayment,
   verifyShopPayment,
+  markCollectionByShopMonth,
+  issueReceipt,
   listAdminPayments,
   listMyCollections
 } = require('../controllers/collection.controller');
@@ -12,6 +14,8 @@ const {
 router.get('/my', authorize('BARBER'), listMyCollections);
 router.get('/admin/payments', authorize('ADMIN', 'SUPER_ADMIN'), listAdminPayments);
 router.patch('/admin/payments/:shopId/:month/verify', authorize('ADMIN', 'SUPER_ADMIN'), verifyShopPayment);
+router.patch('/admin/payments/:shopId/:month/issue-receipt', authorize('ADMIN', 'SUPER_ADMIN'), issueReceipt);
+router.patch('/shop/:shopId/:month/collect', authorize('SERVICE_STAFF', 'ADMIN'), upload.single('imageProof'), markCollectionByShopMonth);
 router.patch('/:id/collect', authorize('SERVICE_STAFF', 'ADMIN'), upload.single('imageProof'), markCollection);
 router.patch('/:id/pay', authorize('ADMIN', 'SUPER_ADMIN'), markPayment);
 
