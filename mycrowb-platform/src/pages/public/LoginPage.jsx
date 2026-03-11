@@ -48,7 +48,7 @@ export default function LoginPage() {
     };
   }, [role, whatsappNumber]);
 
-  const requestOtp = async (event) => {
+  const requestAuthCode = async (event) => {
     event.preventDefault();
     setMessage('');
     if (!whatsappNumber.trim() || !selectedRole) {
@@ -61,21 +61,24 @@ export default function LoginPage() {
         state: {
           whatsappNumber,
           role: selectedRole.key,
+          mode: selectedRole.key === 'admin' ? 'otp' : 'pin',
           dashboard: role === 'admin' && adminEligibility.isSuperAdmin ? '/super-admin/overview' : selectedRole.dashboard
         }
       });
     } catch (error) {
-      setMessage(error.response?.data?.message || 'Unable to request OTP.');
+      setMessage(error.response?.data?.message || 'Unable to continue login.');
     }
   };
 
   const disableAdminOtp = role === 'admin' && adminEligibility.checked && !adminEligibility.authorized;
+  const buttonLabel = role === 'admin' ? 'Request OTP on WhatsApp' : 'Request PIN on WhatsApp';
+  const title = role === 'admin' ? 'Login with WhatsApp OTP' : 'Login with WhatsApp PIN';
 
   return (
-    <Layout title="Login with WhatsApp OTP">
+    <Layout title={title}>
       <section className="max-w-lg rounded-xl bg-white p-6 shadow-sm">
-        <p className="text-sm text-gray-600">Select your role and continue using WhatsApp OTP verification.</p>
-        <form className="mt-4 grid gap-4" onSubmit={requestOtp}>
+        <p className="text-sm text-gray-600">Select your role to continue authentication.</p>
+        <form className="mt-4 grid gap-4" onSubmit={requestAuthCode}>
           <label className="grid gap-1 text-sm font-medium text-gray-700">
             Role
             <select value={role} onChange={(event) => setRole(event.target.value)} className="rounded-md border border-gray-300 p-2">
@@ -99,12 +102,12 @@ export default function LoginPage() {
           </label>
 
           <button className="rounded-md bg-primaryGreen p-2 text-white hover:bg-leafGreen disabled:cursor-not-allowed disabled:bg-gray-400" type="submit" disabled={disableAdminOtp}>
-            Request OTP on WhatsApp
+            {buttonLabel}
           </button>
         </form>
 
         {disableAdminOtp && <p className="mt-2 text-xs text-red-600">This number is not in the authorized admin list.</p>}
-        <p className="mt-3 text-xs text-gray-500">OTP is sent only for registered WhatsApp numbers for the selected role.</p>
+        <p className="mt-3 text-xs text-gray-500">Login code is sent only for registered WhatsApp numbers for the selected role.</p>
         {message && <p className="mt-2 text-sm text-red-600">{message}</p>}
         <Link to="/" className="mt-4 inline-block text-sm font-medium text-primaryGreen">
           ← Back to home

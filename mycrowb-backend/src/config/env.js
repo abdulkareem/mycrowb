@@ -26,6 +26,7 @@ module.exports = {
   twilioAuthToken: process.env.TWILIO_AUTH_TOKEN,
   twilioVerifyServiceSid: process.env.TWILIO_VERIFY_SERVICE_SID,
   smsFallbackSender: process.env.SMS_FALLBACK_SENDER || 'MYCROWB',
+  twilioWhatsappFrom: process.env.TWILIO_WHATSAPP_FROM,
   osrmBaseUrl: process.env.OSRM_BASE_URL || 'https://router.project-osrm.org',
   aiServiceUrl: process.env.AI_SERVICE_URL || 'http://localhost:8001',
   appBaseUrl: process.env.APP_BASE_URL || 'http://localhost:8080',

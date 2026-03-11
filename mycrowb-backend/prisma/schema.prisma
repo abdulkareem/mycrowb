@@ -49,6 +49,9 @@ model User {
   mobile      String      @unique
   name        String
   role        UserRole
+  userPin     String?
+  pinAttempts Int         @default(0)
+  pinCreatedAt DateTime?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   barberShop  BarberShop?

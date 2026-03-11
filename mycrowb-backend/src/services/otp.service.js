@@ -3,7 +3,8 @@ const {
   twilioAccountSid,
   twilioAuthToken,
   twilioVerifyServiceSid,
-  smsFallbackSender
+  smsFallbackSender,
+  twilioWhatsappFrom
 } = require('../config/env');
 const { normalizeMobile } = require('../utils/mobile');
 
@@ -36,4 +37,21 @@ async function verifyOtp(mobile, code) {
   return memoryOtp.get(normalizedMobile) === code;
 }
 
-module.exports = { sendOtp, verifyOtp };
+async function sendWhatsappMessage(mobile, body) {
+  const normalizedMobile = normalizeMobile(mobile);
+
+  if (client && twilioWhatsappFrom) {
+    await client.messages.create({
+      from: twilioWhatsappFrom,
+      to: `whatsapp:+91${normalizedMobile}`,
+      body
+    });
+    return { provider: 'twilio-whatsapp' };
+  }
+
+  // eslint-disable-next-line no-console
+  console.log(`Fallback WhatsApp via ${smsFallbackSender} for ${normalizedMobile}:\n${body}`);
+  return { provider: 'fallback', bodyInLogs: true };
+}
+
+module.exports = { sendOtp, verifyOtp, sendWhatsappMessage };
