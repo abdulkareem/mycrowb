@@ -8,7 +8,9 @@ const {
   twilioWhatsappFrom,
   whatsappPhoneNumberId,
   whatsappAccessToken,
-  whatsappApiUrl
+  whatsappApiUrl,
+  whatsappTemplateName,
+  whatsappTemplateLanguage
 } = require('../config/env');
 const { normalizeMobile } = require('../utils/mobile');
 
@@ -63,7 +65,11 @@ async function sendWhatsappMessage(mobile, body) {
 
 function formatWhatsappRecipient(mobile) {
   const normalizedMobile = normalizeMobile(mobile);
-  if (!normalizedMobile) return '';
+  if (!normalizedMobile || normalizedMobile.length !== 10) {
+    const error = new Error('Invalid WhatsApp number. Please provide a valid 10-digit Indian mobile number.');
+    error.status = 400;
+    throw error;
+  }
 
   return `91${normalizedMobile}`;
 }
@@ -81,8 +87,8 @@ async function sendWhatsAppPin(phoneNumber, pin) {
     to: recipient,
     type: 'template',
     template: {
-      name: 'registration_otp',
-      language: { code: 'en_US' },
+      name: whatsappTemplateName,
+      language: { code: whatsappTemplateLanguage },
       components: [
         {
           type: 'body',
@@ -102,14 +108,25 @@ async function sendWhatsAppPin(phoneNumber, pin) {
     }
   };
 
-  const response = await axios.post(url, payload, {
-    headers: {
-      Authorization: `Bearer ${whatsappAccessToken}`,
-      'Content-Type': 'application/json'
-    }
-  });
+  try {
+    const response = await axios.post(url, payload, {
+      headers: {
+        Authorization: `Bearer ${whatsappAccessToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
 
-  return response.data;
+    return response.data;
+  } catch (error) {
+    const details = error.response?.data || { message: error.message };
+    // eslint-disable-next-line no-console
+    console.error('WhatsApp PIN delivery failed', { recipient, details });
+
+    const deliveryError = new Error('Failed to send OTP on WhatsApp. Please verify the number has joined WhatsApp and template is approved.');
+    deliveryError.status = 502;
+    deliveryError.details = details;
+    throw deliveryError;
+  }
 }
 
 module.exports = { sendOtp, verifyOtp, sendWhatsappMessage, sendWhatsAppPin };

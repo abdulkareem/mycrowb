@@ -30,6 +30,8 @@ module.exports = {
   whatsappPhoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
   whatsappAccessToken: process.env.WHATSAPP_ACCESS_TOKEN,
   whatsappApiUrl: process.env.WHATSAPP_API_URL || 'https://graph.facebook.com/v19.0',
+  whatsappTemplateName: process.env.WHATSAPP_TEMPLATE_NAME || 'registration_otp',
+  whatsappTemplateLanguage: process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'en_US',
   osrmBaseUrl: process.env.OSRM_BASE_URL || 'https://router.project-osrm.org',
   aiServiceUrl: process.env.AI_SERVICE_URL || 'http://localhost:8001',
   appBaseUrl: process.env.APP_BASE_URL || 'http://localhost:8080',
