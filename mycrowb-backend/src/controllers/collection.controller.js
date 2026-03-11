@@ -590,10 +590,25 @@ async function downloadMyReceipt(req, res, next) {
     tempPath = await generateReceiptPdf({
       receiptNumber: collection.receipt.receiptNumber,
       amount: Number(collection.amount || collection.receipt.amount || 0),
+      gst: Number(collection.gstCollected || 0),
+      totalAmount: Number(collection.amount || collection.receipt.amount || 0) + Number(collection.gstCollected || 0),
       paymentDate: collection.paymentDate || collection.receipt.paymentDate || new Date(),
+      paymentMonth: collection.month,
+      collectionYear: collection.year,
+      shopRegNo: collection.shop.shopRegistrationNumber,
       shopName: collection.shop.shopName,
+      ownerName: collection.shop.ownerName,
+      mobileNumber: collection.shop.whatsappNumber || collection.shop.owner?.mobile,
+      roomNumber: collection.shop.roomNumber,
+      buildingNumber: collection.shop.buildingNumber,
+      wardNumber: collection.shop.wardNumber,
+      localBody: collection.shop.localBody,
+      district: collection.shop.district,
+      state: collection.shop.state,
+      paymentMode: 'Not specified',
+      transactionId: 'Not available',
       collectorName: collection.collector?.name,
-      collectorMobile: collection.collector?.mobile,
+      receiptCode: collection.receipt.receiptNumber,
       persist: false
     });
 
