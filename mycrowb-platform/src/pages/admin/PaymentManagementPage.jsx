@@ -92,6 +92,13 @@ export default function PaymentManagementPage() {
 
   const tableRows = useMemo(() => rows, [rows]);
 
+  const getMonthCellClass = (monthData) => {
+    if (monthData?.status === 'MISSED') return 'bg-red-100';
+    if (monthData?.collected && monthData?.paid) return 'bg-green-100';
+    if (!monthData?.collected || monthData?.status === 'PENDING') return 'bg-yellow-100';
+    return 'bg-yellow-100';
+  };
+
   const exportPayments = () => {
     const flatRows = tableRows.map((row) => ({
       shopRegistrationNumber: row.shopRegistrationNumber || '-',
@@ -223,17 +230,17 @@ export default function PaymentManagementPage() {
                   <td className="p-2">₹{Number(row.gst || 0).toFixed(2)}</td>
                   {monthLabels.map((month) => {
                     const monthData = row.months?.[month.key];
-                    if (!monthData?.collected) {
-                      return <td key={`${row.id}-${month.key}`} className="p-2 text-gray-400">-</td>;
-                    }
-
                     return (
-                      <td key={`${row.id}-${month.key}`} className="p-2">
+                      <td key={`${row.id}-${month.key}`} className={`p-2 ${getMonthCellClass(monthData)}`}>
                         <div className="flex min-w-36 flex-col gap-1">
-                          <span>₹{Number(monthData.fee || 0).toFixed(2)} + ₹{Number(monthData.gst || 0).toFixed(2)}</span>
-                          {monthData.paid ? (
-                            <span className="text-xs text-green-700">Verified</span>
+                          {monthData?.collected ? (
+                            <span>₹{Number(monthData.fee || 0).toFixed(2)} + ₹{Number(monthData.gst || 0).toFixed(2)}</span>
                           ) : (
+                            <span className="text-xs">{monthData?.status === 'MISSED' ? 'Missed' : 'Pending'}</span>
+                          )}
+                          {monthData?.status === 'MISSED' && <span className="text-xs text-red-700">Missed</span>}
+                          {monthData?.collected && monthData?.paid && <span className="text-xs text-green-700">Verified</span>}
+                          {monthData?.collected && !monthData?.paid && (
                             <button
                               type="button"
                               className="rounded bg-primaryGreen px-2 py-1 text-xs text-white"
@@ -242,7 +249,7 @@ export default function PaymentManagementPage() {
                               Payment verified
                             </button>
                           )}
-                          {monthData.receiptUrl && (
+                          {monthData?.receiptUrl && (
                             <a
                               href={`${client.defaults.baseURL?.replace('/api/v1', '')}${monthData.receiptUrl}`}
                               target="_blank"

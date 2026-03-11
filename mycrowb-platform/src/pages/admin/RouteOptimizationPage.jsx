@@ -115,6 +115,10 @@ export default function RouteOptimizationPage() {
     }
 
     const assignments = JSON.parse(localStorage.getItem(STAFF_ASSIGNMENT_KEY) || '{}');
+    const routeDate = collectionDate ? new Date(collectionDate) : new Date();
+    const collectionMonth = routeDate.getMonth() + 1;
+    const collectionYear = routeDate.getFullYear();
+
     assignments[selectedStaff.staffIdNumber] = {
       staffIdNumber: selectedStaff.staffIdNumber,
       staffName: selectedStaff.name,
@@ -141,7 +145,9 @@ export default function RouteOptimizationPage() {
           total,
           moneyCollected: total,
           latitude: Number(shop.latitude),
-          longitude: Number(shop.longitude)
+          longitude: Number(shop.longitude),
+          collectionMonth,
+          collectionYear
         };
       }),
       sentAt: new Date().toISOString()

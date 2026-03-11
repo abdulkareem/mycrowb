@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
 import ShopMap from '../../components/map/ShopMap';
@@ -33,6 +33,7 @@ export default function TodayRoutePage() {
   const navigate = useNavigate();
   const [expandedRowId, setExpandedRowId] = useState('');
   const [message, setMessage] = useState('');
+  const [staffPayConfig, setStaffPayConfig] = useState({ commissionPerShop: 0, salaryPerMonth: 0 });
 
   const route = useMemo(() => {
     const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -44,6 +45,26 @@ export default function TodayRoutePage() {
   }, []);
 
   const [collectionByShopId, setCollectionByShopId] = useState(() => JSON.parse(localStorage.getItem(STAFF_COLLECTION_KEY) || '{}'));
+
+  useEffect(() => {
+    const loadStaffPayConfig = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || 'null');
+        const response = await client.get('/staff');
+        const matchedStaff = (response.data || []).find((item) => item.staffIdNumber === user?.staffIdNumber);
+        if (matchedStaff) {
+          setStaffPayConfig({
+            commissionPerShop: Number(matchedStaff.commissionPerShop || 0),
+            salaryPerMonth: Number(matchedStaff.salaryPerMonth || 0)
+          });
+        }
+      } catch (_error) {
+        // keep defaults
+      }
+    };
+
+    loadStaffPayConfig();
+  }, []);
 
   const mapShops = useMemo(
     () => (route?.shops || [])
@@ -80,23 +101,22 @@ export default function TodayRoutePage() {
     }, { collected: 0, missed: 0, notCollected: 0 });
 
     const entries = Object.values(collectionByShopId).filter((item) => item?.status === 'collected' && item?.collectedAt);
-    const monthlyCommission = entries
-      .filter((item) => {
-        const date = new Date(item.collectedAt);
-        return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-      })
-      .reduce((sum, item) => sum + Number(item.tippingFeeCollected || 0), 0);
+    const monthlyCollectedCount = entries.filter((item) => {
+      const date = new Date(item.collectedAt);
+      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    }).length;
 
-    const yearlyCommission = entries
-      .filter((item) => new Date(item.collectedAt).getFullYear() === now.getFullYear())
-      .reduce((sum, item) => sum + Number(item.tippingFeeCollected || 0), 0);
+    const yearlyCollectedCount = entries.filter((item) => new Date(item.collectedAt).getFullYear() === now.getFullYear()).length;
+
+    const monthlyCommission = (monthlyCollectedCount * Number(staffPayConfig.commissionPerShop || 0)) + Number(staffPayConfig.salaryPerMonth || 0);
+    const yearlyCommission = (yearlyCollectedCount * Number(staffPayConfig.commissionPerShop || 0)) + (Number(staffPayConfig.salaryPerMonth || 0) * 12);
 
     return {
       ...routeTotals,
       monthlyCommission: Number(monthlyCommission.toFixed(2)),
       yearlyCommission: Number(yearlyCommission.toFixed(2))
     };
-  }, [route, collectionByShopId]);
+  }, [route, collectionByShopId, staffPayConfig]);
 
   const updateCollectionLocally = (shopId, patch) => {
     setCollectionByShopId((prev) => {
@@ -159,8 +179,23 @@ export default function TodayRoutePage() {
         paymentDate: nowIso
       });
 
+      const collectionMonth = Number(shop.collectionMonth || new Date().getMonth() + 1);
+      const collectionYear = Number(shop.collectionYear || new Date().getFullYear());
+
       if (shop.collectionId) {
         await client.patch(`/collections/${shop.collectionId}/collect`, {
+          hairWeight,
+          tippingFeeCollected,
+          gstCollected,
+          amount: totalCollected,
+          collectionDate: nowIso,
+          paymentDate: nowIso,
+          staffLatitude,
+          staffLongitude
+        });
+      } else {
+        await client.patch(`/collections/shop/${shop.id}/${collectionMonth}/collect`, {
+          year: collectionYear,
           hairWeight,
           tippingFeeCollected,
           gstCollected,

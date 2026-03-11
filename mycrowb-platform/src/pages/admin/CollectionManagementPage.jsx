@@ -53,15 +53,15 @@ export default function CollectionManagementPage() {
       const derivedSummary = list.reduce(
         (acc, row) => {
           const monthData = row.months?.[monthKey];
-          if (!monthData) {
+          if (!monthData || monthData.status === 'PENDING') {
             acc.pending += 1;
             return acc;
           }
 
-          if (monthData.collected) {
-            acc.collected += 1;
-          } else if (monthData.status === 'MISSED') {
+          if (monthData.status === 'MISSED') {
             acc.missed += 1;
+          } else if (monthData.collected) {
+            acc.collected += 1;
           } else {
             acc.pending += 1;
           }
@@ -89,11 +89,23 @@ export default function CollectionManagementPage() {
 
   const selectedMonthKey = monthOptions.find((item) => item.value === Number(month))?.key;
 
+  const issueReceipt = async (shopId, monthNumber) => {
+    try {
+      await client.patch(`/collections/admin/payments/${shopId}/${monthNumber}/issue-receipt`, { year });
+      setMessage('Receipt issued successfully and stored in database.');
+      await loadCollectionData();
+    } catch (_error) {
+      setMessage('Unable to issue receipt for this row.');
+    }
+  };
+
   const tableRows = useMemo(() => {
     const mappedRows = rows.map((row) => {
       const monthData = row.months?.[selectedMonthKey] || null;
-      const collectionStatus = monthData?.collected ? 'Collected' : monthData?.status === 'MISSED' ? 'Missed' : 'Pending';
-      const paymentStatus = monthData?.paid ? 'Paid' : 'Unpaid';
+      const collectionStatus = monthData?.status === 'MISSED' ? 'Missed' : monthData?.collected ? 'Collected' : 'Pending';
+      const paymentStatus = monthData?.paid ? 'Paid' : monthData?.collected ? 'Unpaid' : 'Pending';
+      const canIssueReceipt = Boolean(monthData?.collected);
+
       return {
         id: row.id,
         shopRegistrationNumber: row.shopRegistrationNumber || '-',
@@ -103,7 +115,9 @@ export default function CollectionManagementPage() {
         collectionStatus,
         paymentStatus,
         monthValue: monthData?.month,
-        verified: Boolean(monthData?.paid)
+        receiptNumber: monthData?.receiptNumber || '',
+        canIssueReceipt,
+        isReceiptIssued: Boolean(monthData?.receiptNumber)
       };
     });
 
@@ -197,6 +211,7 @@ export default function CollectionManagementPage() {
                 <th className="p-2">WhatsApp</th>
                 <th className="p-2">Collection Status</th>
                 <th className="p-2">Payment Status</th>
+                <th className="p-2">Issue Receipt</th>
               </tr>
             </thead>
             <tbody>
@@ -208,11 +223,27 @@ export default function CollectionManagementPage() {
                   <td className="p-2">{row.whatsappNumber}</td>
                   <td className="p-2">{row.collectionStatus}</td>
                   <td className="p-2">{row.paymentStatus}</td>
+                  <td className="p-2">
+                    {row.canIssueReceipt ? (
+                      <div className="flex flex-col gap-1">
+                        <button
+                          type="button"
+                          onClick={() => issueReceipt(row.id, row.monthValue)}
+                          className="rounded bg-primaryGreen px-2 py-1 text-xs text-white"
+                        >
+                          Issue receipt
+                        </button>
+                        {row.isReceiptIssued && <span className="text-xs text-green-700">{row.receiptNumber}</span>}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400">Only after collection</span>
+                    )}
+                  </td>
                 </tr>
               ))}
               {!loading && !tableRows.length && (
                 <tr>
-                  <td className="p-4 text-center text-gray-500" colSpan="6">No collection rows found for the selected filters.</td>
+                  <td className="p-4 text-center text-gray-500" colSpan="7">No collection rows found for the selected filters.</td>
                 </tr>
               )}
             </tbody>
