@@ -1,6 +1,7 @@
 const prisma = require('../config/prisma');
 const { generateReceiptPdf } = require('../services/pdf.service');
 const { ensureCollectionLocationColumns } = require('../utils/db-capabilities');
+const { calculatePendingMonths } = require('../utils/pending-months');
 const fs = require('fs/promises');
 
 const MONTHS = [
@@ -24,17 +25,12 @@ async function updatePendingMonthsForShop(shopId) {
   const paidCount = await prisma.collection.count({
     where: {
       shopId,
-      collected: true
+      collected: true,
+      paid: true
     }
   });
 
-  const currentDate = new Date();
-  const joinedDate = shop?.joinedDate ? new Date(shop.joinedDate) : null;
-  const expectedMonths = joinedDate
-    ? Math.max(0, (currentDate.getFullYear() - joinedDate.getFullYear()) * 12 + (currentDate.getMonth() - joinedDate.getMonth()) + 1)
-    : 12;
-
-  const pendingMonths = Math.max(0, expectedMonths - paidCount);
+  const pendingMonths = calculatePendingMonths(shop?.joinedDate, paidCount);
   await prisma.barberShop.update({
     where: { id: shopId },
     data: { paymentPendingMonths: pendingMonths }
@@ -323,7 +319,7 @@ async function listAdminPayments(req, res, next) {
 
     const collectedCounts = await prisma.collection.groupBy({
       by: ['shopId'],
-      where: { collected: true },
+      where: { collected: true, paid: true },
       _count: { _all: true }
     });
 
@@ -395,27 +391,24 @@ async function listAdminPayments(req, res, next) {
         const isFilled = Boolean(row?.collected);
         if (isFilled) filledMonthCount += 1;
         if (isFilled && row?.paid) {
-          totalFeeCollected += tippingFee;
-          totalGstCollected += gst;
+          totalFeeCollected += Number(row?.tippingFeeCollected ?? tippingFee);
+          totalGstCollected += Number(row?.gstCollected ?? gst);
         }
         monthMap[MONTHS[index]] = {
           month: monthNumber,
           collected: isFilled,
           status: row?.status || 'PENDING',
           paid: Boolean(row?.paid),
-          fee: isFilled ? tippingFee : 0,
-          gst: isFilled ? gst : 0,
+          fee: isFilled && row?.paid ? Number(row?.tippingFeeCollected ?? tippingFee) : 0,
+          gst: isFilled && row?.paid ? Number(row?.gstCollected ?? gst) : 0,
+          total: isFilled && row?.paid ? Number((Number(row?.tippingFeeCollected ?? tippingFee) + Number(row?.gstCollected ?? gst)).toFixed(2)) : 0,
           receiptUrl: row?.receipt?.pdfUrl || null,
           receiptNumber: row?.receipt?.receiptNumber || null,
           collector: row?.collector || null
         };
       });
 
-      const joinedDate = shop.joinedDate ? new Date(shop.joinedDate) : null;
-      const expectedMonths = joinedDate
-        ? Math.max(0, (new Date().getFullYear() - joinedDate.getFullYear()) * 12 + (new Date().getMonth() - joinedDate.getMonth()) + 1)
-        : 12;
-      const pendingMonths = Math.max(0, expectedMonths - Number(collectedCountByShop[shop.id] || 0));
+      const pendingMonths = calculatePendingMonths(shop.joinedDate, Number(collectedCountByShop[shop.id] || 0));
       await prisma.barberShop.update({
         where: { id: shop.id },
         data: { paymentPendingMonths: pendingMonths }
@@ -465,8 +458,8 @@ async function listAdminPayments(req, res, next) {
 
     const yearlyGrandTotals = allYearCollections.reduce((acc, item) => {
       const charges = getShopCharges(item.shop);
-      acc.fee += charges.tippingFee;
-      acc.gst += charges.gst;
+      acc.fee += Number(item.tippingFeeCollected ?? charges.tippingFee);
+      acc.gst += Number(item.gstCollected ?? charges.gst);
       return acc;
     }, { fee: 0, gst: 0 });
 
@@ -475,8 +468,8 @@ async function listAdminPayments(req, res, next) {
       const monthCollections = allYearCollections.filter((item) => item.month === month);
       const totals = monthCollections.reduce((sum, item) => {
         const charges = getShopCharges(item.shop);
-        sum.fee += charges.tippingFee;
-        sum.gst += charges.gst;
+        sum.fee += Number(item.tippingFeeCollected ?? charges.tippingFee);
+        sum.gst += Number(item.gstCollected ?? charges.gst);
         return sum;
       }, { fee: 0, gst: 0 });
 

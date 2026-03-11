@@ -110,7 +110,8 @@ export default function PaymentManagementPage() {
       pendingMonths: row.pendingMonths || 0,
       collectedMonths: row.collectedMonths || 0,
       totalFeeCollected: Number(row.totalFeeCollected || 0).toFixed(2),
-      totalGstCollected: Number(row.totalGstCollected || 0).toFixed(2)
+      totalGstCollected: Number(row.totalGstCollected || 0).toFixed(2),
+      totalAmountCollected: Number((Number(row.totalFeeCollected || 0) + Number(row.totalGstCollected || 0)).toFixed(2)).toFixed(2)
     }));
 
     downloadCsv(`payments-${year}.csv`, [
@@ -123,7 +124,8 @@ export default function PaymentManagementPage() {
       { key: 'pendingMonths', header: 'Pending Months' },
       { key: 'collectedMonths', header: 'Collected Months' },
       { key: 'totalFeeCollected', header: 'Total Fee Collected' },
-      { key: 'totalGstCollected', header: 'Total GST Collected' }
+      { key: 'totalGstCollected', header: 'Total GST Collected' },
+      { key: 'totalAmountCollected', header: 'Total Amount Collected' }
     ], flatRows);
 
     setMessage('Payment data exported successfully.');
@@ -217,11 +219,12 @@ export default function PaymentManagementPage() {
                 <th className="p-2">Collected Months</th>
                 <th className="p-2">Total Fee Collected</th>
                 <th className="p-2">Total GST Collected</th>
+                <th className="p-2">Total Amount Collected</th>
               </tr>
             </thead>
             <tbody>
               {!loading && tableRows.map((row) => (
-                <tr key={row.id} className={`border-b align-top ${row.pendingMonths === 3 ? 'bg-red-100' : ''}`}>
+                <tr key={row.id} className={`border-b align-top ${row.pendingMonths >= 3 ? 'bg-red-50' : ''}`}>
                   <td className="p-2">{row.shopRegistrationNumber || '-'}</td>
                   <td className="p-2">{row.shopName || '-'}</td>
                   <td className="p-2">{row.ownerName || '-'}</td>
@@ -233,7 +236,7 @@ export default function PaymentManagementPage() {
                     return (
                       <td key={`${row.id}-${month.key}`} className={`p-2 ${getMonthCellClass(monthData)}`}>
                         <div className="flex min-w-36 flex-col gap-1">
-                          {monthData?.collected ? (
+                          {monthData?.collected && monthData?.paid ? (
                             <span>₹{Number(monthData.fee || 0).toFixed(2)} + ₹{Number(monthData.gst || 0).toFixed(2)}</span>
                           ) : (
                             <span className="text-xs">{monthData?.status === 'MISSED' ? 'Missed' : 'Pending'}</span>
@@ -263,10 +266,11 @@ export default function PaymentManagementPage() {
                       </td>
                     );
                   })}
-                  <td className="p-2">{row.pendingMonths}</td>
+                  <td className={`p-2 font-semibold ${row.pendingMonths >= 3 ? 'text-red-600' : ''}`}>{row.pendingMonths}</td>
                   <td className="p-2">{row.collectedMonths || 0}</td>
                   <td className="p-2">₹{Number(row.totalFeeCollected || 0).toFixed(2)}</td>
                   <td className="p-2">₹{Number(row.totalGstCollected || 0).toFixed(2)}</td>
+                  <td className="p-2">₹{Number((Number(row.totalFeeCollected || 0) + Number(row.totalGstCollected || 0)).toFixed(2))}</td>
                 </tr>
               ))}
               {!loading && tableRows.length > 0 && (
@@ -288,6 +292,9 @@ export default function PaymentManagementPage() {
                   <td className="p-2">
                     ₹{monthLabels.reduce((acc, month) => acc + Number(summary.monthlyTotals?.[month.key]?.gst || 0), 0).toFixed(2)}
                   </td>
+                  <td className="p-2">
+                    ₹{monthLabels.reduce((acc, month) => acc + Number(summary.monthlyTotals?.[month.key]?.total || 0), 0).toFixed(2)}
+                  </td>
                 </tr>
               )}
               {!loading && (
@@ -301,6 +308,7 @@ export default function PaymentManagementPage() {
                   <td className="p-2">-</td>
                   <td className="p-2">₹{Number(summary.yearlyGrandTotals?.fee || 0).toFixed(2)}</td>
                   <td className="p-2">₹{Number(summary.yearlyGrandTotals?.gst || 0).toFixed(2)}</td>
+                  <td className="p-2">₹{Number(summary.yearlyGrandTotals?.total || 0).toFixed(2)}</td>
                 </tr>
               )}
             </tbody>

@@ -2,6 +2,7 @@ const XLSX = require('xlsx');
 const prisma = require('../config/prisma');
 const { importShops } = require('../services/csv-upload.service');
 const { ensureShopRegistrationNumberColumn } = require('../utils/db-capabilities');
+const { calculatePendingMonths } = require('../utils/pending-months');
 
 async function uploadShopsCsv(req, res, next) {
   try {
@@ -67,7 +68,28 @@ async function listShops(req, res, next) {
       },
       orderBy
     });
-    res.json(shops);
+
+    const verifiedCollectionsByShop = await prisma.collection.groupBy({
+      by: ['shopId'],
+      where: {
+        collected: true,
+        paid: true,
+        shopId: { in: shops.map((shop) => shop.id) }
+      },
+      _count: { _all: true }
+    });
+
+    const verifiedCountLookup = verifiedCollectionsByShop.reduce((acc, item) => {
+      acc[item.shopId] = item._count._all;
+      return acc;
+    }, {});
+
+    const shopsWithPending = shops.map((shop) => ({
+      ...shop,
+      paymentPendingMonths: calculatePendingMonths(shop.joinedDate, verifiedCountLookup[shop.id] || 0)
+    }));
+
+    res.json(shopsWithPending);
   } catch (error) {
     next(error);
   }

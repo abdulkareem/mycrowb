@@ -42,7 +42,7 @@ async function createStaff(req, res, next) {
 
     const requiredFields = [
       'name', 'address', 'whatsappNumber', 'mobileNumber', 'aadhaarNumber',
-      'vehicleNumber', 'clustersAllotted', 'staffIdNumber', 'commissionPerShop', 'salaryPerMonth'
+      'vehicleNumber', 'staffIdNumber', 'commissionPerShop', 'salaryPerMonth'
     ];
 
     const missingField = requiredFields.find((field) => !req.body[field]);
@@ -60,7 +60,7 @@ async function createStaff(req, res, next) {
         mobileNumber: req.body.mobileNumber,
         aadhaarNumber: req.body.aadhaarNumber,
         vehicleNumber: req.body.vehicleNumber,
-        clustersAllotted: req.body.clustersAllotted,
+        clustersAllotted: req.body.clustersAllotted || '',
         staffIdNumber: req.body.staffIdNumber,
         commissionPerShop: Number(req.body.commissionPerShop),
         salaryPerMonth: Number(req.body.salaryPerMonth)
