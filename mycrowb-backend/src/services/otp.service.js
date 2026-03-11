@@ -62,11 +62,7 @@ function formatWhatsappRecipient(mobile) {
   const normalizedMobile = normalizeMobile(mobile);
   if (!normalizedMobile) return '';
 
-  if (normalizedMobile.length === 10) {
-    return `91${normalizedMobile}`;
-  }
-
-  return normalizedMobile;
+  return `91${normalizedMobile}`;
 }
 
 async function sendWhatsAppPin(phoneNumber, pin) {
