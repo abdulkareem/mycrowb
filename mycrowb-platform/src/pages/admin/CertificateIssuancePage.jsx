@@ -10,7 +10,6 @@ const initialForm = {
   mobileNumber: '',
   aadhaarNumber: '',
   vehicleNumber: '',
-  clustersAllotted: '',
   staffIdNumber: '',
   commissionPerShop: '',
   salaryPerMonth: ''
@@ -22,7 +21,6 @@ const maxPhotoSize = 200 * 1024;
 export default function CertificateIssuancePage() {
   const navigate = useNavigate();
   const [staffList, setStaffList] = useState([]);
-  const [clusterOptions, setClusterOptions] = useState([]);
   const [form, setForm] = useState(initialForm);
   const [photo, setPhoto] = useState(null);
   const [message, setMessage] = useState('');
@@ -46,19 +44,8 @@ export default function CertificateIssuancePage() {
     }
   };
 
-  const loadClusterOptions = async () => {
-    try {
-      const response = await client.get('/shops', { params: { sortField: 'clusterName', sortOrder: 'asc' } });
-      const clusters = [...new Set((response.data || []).map((shop) => shop.clusterName).filter(Boolean))];
-      setClusterOptions(clusters);
-    } catch (_error) {
-      setMessage('Unable to load cluster options.');
-    }
-  };
-
   useEffect(() => {
     loadStaff();
-    loadClusterOptions();
   }, []);
 
   const handleFormChange = (event) => {
@@ -148,12 +135,6 @@ export default function CertificateIssuancePage() {
             <input className="rounded-md border border-gray-300 p-2" name="mobileNumber" onChange={handleFormChange} placeholder="Mobile" required value={form.mobileNumber} />
             <input className="rounded-md border border-gray-300 p-2" name="aadhaarNumber" onChange={handleFormChange} placeholder="Aadhaar number" required value={form.aadhaarNumber} />
             <input className="rounded-md border border-gray-300 p-2" name="vehicleNumber" onChange={handleFormChange} placeholder="Vehicle number" required value={form.vehicleNumber} />
-            <select className="rounded-md border border-gray-300 p-2" name="clustersAllotted" onChange={handleFormChange} required value={form.clustersAllotted}>
-              <option value="">Select cluster</option>
-              {clusterOptions.map((cluster) => (
-                <option key={cluster} value={cluster}>{cluster}</option>
-              ))}
-            </select>
             <input className="rounded-md border border-gray-300 p-2" name="staffIdNumber" onChange={handleFormChange} placeholder="Staff ID number" required value={form.staffIdNumber} />
             <input className="rounded-md border border-gray-300 p-2" min="0" name="commissionPerShop" onChange={handleFormChange} placeholder="Commission per shop" required step="0.01" type="number" value={form.commissionPerShop} />
             <input className="rounded-md border border-gray-300 p-2" min="0" name="salaryPerMonth" onChange={handleFormChange} placeholder="Salary per month" required step="0.01" type="number" value={form.salaryPerMonth} />
@@ -170,10 +151,10 @@ export default function CertificateIssuancePage() {
         {message && <p className="mt-3 text-sm text-gray-700">{message}</p>}
 
         <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[1100px] border-collapse text-sm">
+          <table className="w-full min-w-[1000px] border-collapse text-sm">
             <thead>
               <tr className="bg-gray-100 text-left">
-                <th className="p-2">Photo</th><th className="p-2">Name</th><th className="p-2">Status</th><th className="p-2">Address</th><th className="p-2">WhatsApp</th><th className="p-2">Mobile</th><th className="p-2">Aadhaar</th><th className="p-2">Vehicle</th><th className="p-2">Clusters</th><th className="p-2">Staff ID</th><th className="p-2">Commission/shop</th><th className="p-2">Salary/month</th><th className="p-2">Actions</th>
+                <th className="p-2">Photo</th><th className="p-2">Name</th><th className="p-2">Status</th><th className="p-2">Address</th><th className="p-2">WhatsApp</th><th className="p-2">Mobile</th><th className="p-2">Aadhaar</th><th className="p-2">Vehicle</th><th className="p-2">Staff ID</th><th className="p-2">Commission/shop</th><th className="p-2">Salary/month</th><th className="p-2">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -198,7 +179,6 @@ export default function CertificateIssuancePage() {
                   <td className="p-2">{staff.mobileNumber}</td>
                   <td className="p-2">{staff.aadhaarNumber}</td>
                   <td className="p-2">{staff.vehicleNumber}</td>
-                  <td className="p-2">{staff.clustersAllotted}</td>
                   <td className="p-2">{staff.staffIdNumber}</td>
                   <td className="p-2">₹{Number(staff.commissionPerShop).toFixed(2)}</td>
                   <td className="p-2">₹{Number(staff.salaryPerMonth).toFixed(2)}</td>
@@ -214,7 +194,7 @@ export default function CertificateIssuancePage() {
               ))}
               {!staffList.length && (
                 <tr>
-                  <td className="p-4 text-center text-gray-500" colSpan="13">No staff records yet. Click "Add new staff" to create one.</td>
+                  <td className="p-4 text-center text-gray-500" colSpan="12">No staff records yet. Click "Add new staff" to create one.</td>
                 </tr>
               )}
             </tbody>

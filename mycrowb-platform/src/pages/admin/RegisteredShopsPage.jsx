@@ -225,6 +225,10 @@ export default function RegisteredShopsPage() {
       if (field === 'category') return categoryLabel[shop.category] || '-';
       if (field === 'collectionFrequency') return frequencyLabel[shop.collectionFrequency] || '-';
       if (field === 'joinedDate') return shop.joinedDate ? new Date(shop.joinedDate).toLocaleDateString() : '-';
+      if (field === 'paymentPendingMonths') {
+        const pendingMonths = Number(shop.paymentPendingMonths || 0);
+        return <span className={pendingMonths >= 3 ? 'font-semibold text-red-600' : ''}>{pendingMonths}</span>;
+      }
       return shop[field] ?? '-';
     }
 
@@ -323,7 +327,7 @@ export default function RegisteredShopsPage() {
             </thead>
             <tbody>
               {!loading && shops.map((shop) => (
-                <tr key={shop.id} className={`border-b align-top ${shop.paymentPendingMonths === 3 ? 'bg-red-100' : ''}`}>
+                <tr key={shop.id} className={`border-b align-top ${Number(shop.paymentPendingMonths || 0) >= 3 ? 'bg-red-50' : ''}`}>
                   {headers.map((header) => (
                     <td key={`${shop.id}-${header.key}`} className="p-2">{renderCell(shop, header.key)}</td>
                   ))}

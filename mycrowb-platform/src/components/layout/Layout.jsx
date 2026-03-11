@@ -19,7 +19,7 @@ export default function Layout({ title, children }) {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('sessionId');
-    navigate('/login');
+    navigate('/');
   };
 
   return (

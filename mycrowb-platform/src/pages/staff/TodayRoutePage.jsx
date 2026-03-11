@@ -37,10 +37,12 @@ const getRouteTimestamp = (route) => {
 
 export default function TodayRoutePage() {
   const navigate = useNavigate();
+  const [selectedRouteIndex, setSelectedRouteIndex] = useState(0);
   const [expandedRowId, setExpandedRowId] = useState('');
   const [message, setMessage] = useState('');
   const [staffPayConfig, setStaffPayConfig] = useState({ commissionPerShop: 0, salaryPerMonth: 0 });
   const [routeStatusByShopId, setRouteStatusByShopId] = useState({});
+  const [showMap, setShowMap] = useState(false);
 
   const routes = useMemo(() => {
     const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -289,7 +291,7 @@ export default function TodayRoutePage() {
         </p>
 
         {!!routes.length && (
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+          <div className="mt-3 space-y-3 text-sm">
             <label className="text-gray-700" htmlFor="route-select">Select route:</label>
             <select
               id="route-select"
@@ -306,6 +308,28 @@ export default function TodayRoutePage() {
                 </option>
               ))}
             </select>
+
+            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+              {routes.map((item, index) => {
+                const isSelected = selectedRouteIndex === index;
+                return (
+                  <button
+                    key={`route-card-${item.id || index}`}
+                    type="button"
+                    onClick={() => {
+                      setExpandedRowId('');
+                      setSelectedRouteIndex(index);
+                    }}
+                    className={`rounded-lg border p-3 text-left transition ${isSelected ? 'border-primaryGreen bg-green-50' : 'border-gray-200 bg-white hover:border-primaryGreen/50'}`}
+                  >
+                    <p className="text-sm font-semibold text-gray-800">{item.clusterName || 'Unknown cluster'}</p>
+                    <p className="text-xs text-gray-600">{item.date || item.sentAt?.slice(0, 10) || 'No date'}</p>
+                    <p className="mt-1 text-xs text-gray-600">Vehicle: {item.vehicleNumber || '-'}</p>
+                    <p className="text-xs text-gray-700">{(item.shops || []).length} assigned shops</p>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -425,8 +449,13 @@ export default function TodayRoutePage() {
         </div>
 
         <div className="mt-6">
-          <h2 className="mb-2 text-base font-semibold text-gray-800">Route map (all shops)</h2>
-          {mapShops.length ? <ShopMap shops={mapShops} staffLocation={staffLocation} /> : <p className="rounded-md bg-gray-50 p-3 text-sm text-gray-500">No valid shop map data found in this route.</p>}
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h2 className="text-base font-semibold text-gray-800">Route map (all shops)</h2>
+            <button type="button" className="rounded-md border border-gray-300 px-3 py-1 text-xs text-gray-700" onClick={() => setShowMap((prev) => !prev)}>
+              {showMap ? 'Hide map' : 'Show map'}
+            </button>
+          </div>
+          {showMap && (mapShops.length ? <ShopMap shops={mapShops} staffLocation={staffLocation} /> : <p className="rounded-md bg-gray-50 p-3 text-sm text-gray-500">No valid shop map data found in this route.</p>)}
         </div>
       </section>
     </Layout>
