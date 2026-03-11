@@ -166,11 +166,17 @@ async function sendWhatsAppOTP(phoneNumber, otp) {
       details
     });
 
-    const deliveryError = new Error('Failed to send OTP on WhatsApp. Please retry in a moment and verify the number has joined WhatsApp and template is approved.');
+    const tokenExpired = Number(errorCode) === 190 && Number(details?.error?.error_subcode) === 463;
+    const userFacingMessage = tokenExpired
+      ? 'WhatsApp OTP service is temporarily unavailable due to an expired integration token. Please contact support to refresh the WhatsApp configuration.'
+      : 'Failed to send OTP on WhatsApp. Please retry in a moment and verify the number has joined WhatsApp and template is approved.';
+
+    const deliveryError = new Error(userFacingMessage);
     deliveryError.status = 502;
     deliveryError.details = details;
     deliveryError.code = errorCode;
     deliveryError.fbtraceId = fbtraceId;
+    deliveryError.retryable = !tokenExpired;
     throw deliveryError;
   }
 }
