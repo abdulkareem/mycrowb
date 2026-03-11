@@ -152,9 +152,15 @@ async function downloadMyLatestCertificate(req, res, next) {
     }
 
     tempPath = await generateCertificatePdf({
+      shopRegNo: shop.shopRegistrationNumber,
       shopName: shop.shopName,
-      ownerName: shop.owner?.name,
+      ownerName: shop.owner?.name || shop.ownerName,
       ownerMobile: shop.owner?.mobile,
+      category: shop.category,
+      roomNo: shop.roomNumber,
+      buildingNo: shop.buildingNumber,
+      wardNo: shop.wardNumber,
+      localBody: shop.localBody,
       address: shop.address,
       district: shop.district,
       state: shop.state,
