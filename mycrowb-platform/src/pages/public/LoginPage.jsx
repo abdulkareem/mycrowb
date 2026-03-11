@@ -24,27 +24,37 @@ export default function LoginPage() {
   const selectedRole = useMemo(() => roles.find((item) => item.key === role), [role]);
 
   useEffect(() => {
-    let active = true;
+    const normalizedDigits = whatsappNumber.replace(/\D/g, '');
+    const minimumDigitsForEligibilityCheck = 10;
+    const debounceDelayMs = 400;
+    const abortController = new AbortController();
 
     async function checkAdmin() {
-      if (role !== 'admin' || !whatsappNumber.trim()) {
-        if (active) setAdminEligibility({ checked: false, authorized: false, isSuperAdmin: false });
+      if (role !== 'admin' || normalizedDigits.length < minimumDigitsForEligibilityCheck) {
+        setAdminEligibility({ checked: false, authorized: false, isSuperAdmin: false });
         return;
       }
 
       try {
-        const response = await client.get('/auth/admin-eligibility', { params: { mobile: whatsappNumber } });
-        if (active) {
-          setAdminEligibility({ checked: true, authorized: response.data.authorized, isSuperAdmin: response.data.isSuperAdmin });
-        }
+        const response = await client.get('/auth/admin-eligibility', {
+          params: { mobile: normalizedDigits },
+          signal: abortController.signal
+        });
+        setAdminEligibility({ checked: true, authorized: response.data.authorized, isSuperAdmin: response.data.isSuperAdmin });
       } catch (_error) {
-        if (active) setAdminEligibility({ checked: true, authorized: false, isSuperAdmin: false });
+        if (_error?.name === 'CanceledError' || _error?.code === 'ERR_CANCELED') {
+          return;
+        }
+
+        setAdminEligibility({ checked: true, authorized: false, isSuperAdmin: false });
       }
     }
 
-    checkAdmin();
+    const debounceTimer = setTimeout(checkAdmin, debounceDelayMs);
+
     return () => {
-      active = false;
+      clearTimeout(debounceTimer);
+      abortController.abort();
     };
   }, [role, whatsappNumber]);
 
