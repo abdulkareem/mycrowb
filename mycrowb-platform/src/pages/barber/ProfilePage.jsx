@@ -130,7 +130,7 @@ export default function ProfilePage() {
         <input name="state" value={form.state} onChange={handleChange} className="rounded-md border border-gray-300 p-2" placeholder="State" readOnly={readOnly} required />
         <input name="latitude" value={form.latitude} onChange={handleChange} className="rounded-md border border-gray-300 p-2" placeholder="Latitude" readOnly={readOnly} required />
         <input name="longitude" value={form.longitude} onChange={handleChange} className="rounded-md border border-gray-300 p-2" placeholder="Longitude" readOnly={readOnly} required />
-        <input name="whatsappNumber" value={form.whatsappNumber} onChange={handleChange} className="rounded-md border border-gray-300 p-2" placeholder="WhatsApp number" readOnly={readOnly} required />
+        <p className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">WhatsApp number updates are handled only by admin support.</p>
         <input name="employeeCount" type="number" min="0" value={form.employeeCount} onChange={handleChange} className="rounded-md border border-gray-300 p-2" placeholder="Employee count" readOnly={readOnly} required />
         <input name="chairCount" type="number" min="0" value={form.chairCount} onChange={handleChange} className="rounded-md border border-gray-300 p-2" placeholder="Chair count" readOnly={readOnly} required />
 

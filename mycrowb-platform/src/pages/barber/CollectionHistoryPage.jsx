@@ -7,6 +7,11 @@ function monthLabel(month, year) {
   return new Date(year, month - 1, 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
 }
 
+function receiptUrl(pdfUrl) {
+  if (!pdfUrl) return '';
+  return `${client.defaults.baseURL.replace('/api/v1', '')}${pdfUrl}`;
+}
+
 export default function CollectionHistoryPage() {
   const [collections, setCollections] = useState([]);
   const [error, setError] = useState('');
@@ -23,7 +28,7 @@ export default function CollectionHistoryPage() {
       collections.filter((item) => item.paid && item.receipt?.pdfUrl).map((item) => ({
         key: `${item.year}-${item.month}`,
         label: monthLabel(item.month, item.year),
-        url: `${client.defaults.baseURL.replace('/api/v1', '')}${item.receipt.pdfUrl}`
+        url: receiptUrl(item.receipt.pdfUrl)
       })),
     [collections]
   );
@@ -42,17 +47,33 @@ export default function CollectionHistoryPage() {
                 <th className="p-2">Collection staff</th>
                 <th className="p-2">Quantity</th>
                 <th className="p-2">Admin verified</th>
+                <th className="p-2">Receipt PDF</th>
               </tr>
             </thead>
             <tbody>
-              {collections.map((item) => (
-                <tr key={item.id} className="border-b">
-                  <td className="p-2">{item.collectionDate ? new Date(item.collectionDate).toLocaleDateString() : '-'}</td>
-                  <td className="p-2">{item.collector?.name || '-'}</td>
-                  <td className="p-2">{item.hairWeight} kg</td>
-                  <td className="p-2">{item.paid ? 'Yes' : 'No'}</td>
-                </tr>
-              ))}
+              {collections.map((item) => {
+                const verified = Boolean(item.paid);
+                const url = receiptUrl(item.receipt?.pdfUrl);
+                return (
+                  <tr key={item.id} className="border-b">
+                    <td className="p-2">{item.collectionDate ? new Date(item.collectionDate).toLocaleDateString() : '-'}</td>
+                    <td className="p-2">{item.collector?.name || '-'}</td>
+                    <td className="p-2">{item.hairWeight} kg</td>
+                    <td className="p-2">{verified ? 'Verified' : 'Verification pending'}</td>
+                    <td className="p-2">
+                      {verified && url ? (
+                        <a className="rounded-md bg-primaryGreen px-3 py-1 text-xs text-white" href={url} target="_blank" rel="noreferrer">
+                          Download PDF
+                        </a>
+                      ) : (
+                        <button className="cursor-not-allowed rounded-md bg-gray-200 px-3 py-1 text-xs text-gray-500" disabled>
+                          Download PDF
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

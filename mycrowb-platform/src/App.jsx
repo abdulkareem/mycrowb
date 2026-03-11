@@ -10,6 +10,7 @@ import CertificatesPage from './pages/barber/CertificatesPage';
 import ProfilePage from './pages/barber/ProfilePage';
 import ServiceRatingPage from './pages/barber/ServiceRatingPage';
 import NotificationsPage from './pages/barber/NotificationsPage';
+import TrackCollectionVehiclePage from './pages/barber/TrackCollectionVehiclePage';
 import TodayRoutePage from './pages/staff/TodayRoutePage';
 import ShopMapViewPage from './pages/staff/ShopMapViewPage';
 import CollectionConfirmPage from './pages/staff/CollectionConfirmPage';
@@ -45,6 +46,7 @@ export default function App() {
       <Route path="/barber/profile" element={<RequireRole roles={['BARBER']}><ProfilePage /></RequireRole>} />
       <Route path="/barber/rating" element={<RequireRole roles={['BARBER']}><ServiceRatingPage /></RequireRole>} />
       <Route path="/barber/notifications" element={<RequireRole roles={['BARBER']}><NotificationsPage /></RequireRole>} />
+      <Route path="/barber/track-vehicle" element={<RequireRole roles={['BARBER']}><TrackCollectionVehiclePage /></RequireRole>} />
       <Route path="/staff/today-route" element={<RequireRole roles={['SERVICE_STAFF']}><TodayRoutePage /></RequireRole>} />
       <Route path="/staff/shop-map" element={<RequireRole roles={['SERVICE_STAFF']}><ShopMapViewPage /></RequireRole>} />
       <Route path="/staff/collection-confirm" element={<RequireRole roles={['SERVICE_STAFF']}><CollectionConfirmPage /></RequireRole>} />

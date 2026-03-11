@@ -362,6 +362,73 @@ async function setProfileEditApproval(req, res, next) {
   }
 }
 
+async function trackMyCollectionVehicle(req, res, next) {
+  try {
+    const myShop = await prisma.barberShop.findUnique({
+      where: { ownerId: req.user.sub },
+      select: { id: true, clusterName: true }
+    });
+
+    if (!myShop) {
+      return res.status(404).json({ message: 'Shop not found for barber' });
+    }
+
+    const latestCollectionForShop = await prisma.collection.findFirst({
+      where: { shopId: myShop.id, collected: true },
+      orderBy: [{ collectionDate: 'desc' }, { updatedAt: 'desc' }],
+      include: {
+        collector: { select: { id: true, name: true, mobile: true } }
+      }
+    });
+
+    let staffLocation = null;
+    if (latestCollectionForShop?.collectorId) {
+      const latestStaffCollection = await prisma.collection.findFirst({
+        where: {
+          collectorId: latestCollectionForShop.collectorId,
+          collected: true,
+          staffLatitude: { not: null },
+          staffLongitude: { not: null }
+        },
+        orderBy: [{ collectionDate: 'desc' }, { updatedAt: 'desc' }]
+      });
+
+      if (latestStaffCollection) {
+        staffLocation = {
+          latitude: latestStaffCollection.staffLatitude,
+          longitude: latestStaffCollection.staffLongitude,
+          updatedAt: latestStaffCollection.collectionDate || latestStaffCollection.updatedAt,
+          staff: latestCollectionForShop.collector
+        };
+      }
+    }
+
+    const routeShops = myShop.clusterName
+      ? await prisma.barberShop.findMany({
+        where: { clusterName: myShop.clusterName, status: 'ACTIVE' },
+        select: {
+          id: true,
+          shopName: true,
+          ownerName: true,
+          place: true,
+          clusterName: true,
+          latitude: true,
+          longitude: true
+        },
+        orderBy: { shopName: 'asc' }
+      })
+      : [];
+
+    return res.json({
+      clusterName: myShop.clusterName,
+      staffLocation,
+      routeShops
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 module.exports = {
   uploadShopsCsv,
   listShops,
@@ -370,6 +437,7 @@ module.exports = {
   toggleShop,
   deleteShop,
   getMyShop,
+  trackMyCollectionVehicle,
   updateMyShopProfile,
   requestProfileEdit,
   setProfileEditApproval
