@@ -34,6 +34,9 @@ async function ensureCollectionLocationColumns() {
 
   await prisma.$executeRawUnsafe('ALTER TABLE "Collection" ADD COLUMN IF NOT EXISTS "staffLatitude" DOUBLE PRECISION');
   await prisma.$executeRawUnsafe('ALTER TABLE "Collection" ADD COLUMN IF NOT EXISTS "staffLongitude" DOUBLE PRECISION');
+  await prisma.$executeRawUnsafe('ALTER TABLE "Collection" ADD COLUMN IF NOT EXISTS "tippingFeeCollected" DOUBLE PRECISION');
+  await prisma.$executeRawUnsafe('ALTER TABLE "Collection" ADD COLUMN IF NOT EXISTS "gstCollected" DOUBLE PRECISION');
+  await prisma.$executeRawUnsafe('ALTER TABLE "Collection" ADD COLUMN IF NOT EXISTS "paymentDate" TIMESTAMP(3)');
 
   collectionLocationReady = true;
 }

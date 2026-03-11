@@ -19,13 +19,14 @@ const isValidCoordinate = (latitude, longitude) => {
   return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
 };
 
-const getDefaultAmount = (shop) => {
-  if (Number.isFinite(Number(shop.moneyCollected))) return Number(shop.moneyCollected);
-  if (Number.isFinite(Number(shop.total))) return Number(shop.total);
+const getShopCharges = (shop) => {
   const tippingFee = Number(shop.tippingFees || 0);
-  const gstPercentage = Number(shop.gstPercentage ?? 18);
-  const gst = (tippingFee * gstPercentage) / 100;
-  return Number((tippingFee + gst).toFixed(2));
+  const gst = Number(shop.gst ?? ((tippingFee * Number(shop.gstPercentage ?? 18)) / 100).toFixed(2));
+  return {
+    tippingFee,
+    gst,
+    total: Number((tippingFee + gst).toFixed(2))
+  };
 };
 
 export default function TodayRoutePage() {
@@ -56,6 +57,47 @@ export default function TodayRoutePage() {
     [route, collectionByShopId]
   );
 
+  const staffLocation = useMemo(() => {
+    const latest = Object.values(collectionByShopId)
+      .filter((item) => isValidCoordinate(item?.staffLatitude, item?.staffLongitude) && item?.collectedAt)
+      .sort((a, b) => new Date(b.collectedAt).getTime() - new Date(a.collectedAt).getTime())[0];
+
+    return latest
+      ? { latitude: Number(latest.staffLatitude), longitude: Number(latest.staffLongitude) }
+      : null;
+  }, [collectionByShopId]);
+
+  const stats = useMemo(() => {
+    const shops = route?.shops || [];
+    const now = new Date();
+
+    const routeTotals = shops.reduce((acc, shop) => {
+      const status = collectionByShopId[shop.id]?.status || 'pending';
+      if (status === 'collected') acc.collected += 1;
+      else if (status === 'missed') acc.missed += 1;
+      else acc.notCollected += 1;
+      return acc;
+    }, { collected: 0, missed: 0, notCollected: 0 });
+
+    const entries = Object.values(collectionByShopId).filter((item) => item?.status === 'collected' && item?.collectedAt);
+    const monthlyCommission = entries
+      .filter((item) => {
+        const date = new Date(item.collectedAt);
+        return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+      })
+      .reduce((sum, item) => sum + Number(item.tippingFeeCollected || 0), 0);
+
+    const yearlyCommission = entries
+      .filter((item) => new Date(item.collectedAt).getFullYear() === now.getFullYear())
+      .reduce((sum, item) => sum + Number(item.tippingFeeCollected || 0), 0);
+
+    return {
+      ...routeTotals,
+      monthlyCommission: Number(monthlyCommission.toFixed(2)),
+      yearlyCommission: Number(yearlyCommission.toFixed(2))
+    };
+  }, [route, collectionByShopId]);
+
   const updateCollectionLocally = (shopId, patch) => {
     setCollectionByShopId((prev) => {
       const next = { ...prev, [shopId]: { ...(prev[shopId] || {}), ...patch } };
@@ -84,36 +126,47 @@ export default function TodayRoutePage() {
 
   const handleConfirmCollection = async (shop) => {
     const existing = collectionByShopId[shop.id] || {};
+    const { tippingFee, gst } = getShopCharges(shop);
     const hairWeight = Number(existing.hairWeight ?? 10);
-    const moneyCollected = Number(existing.moneyCollected ?? getDefaultAmount(shop));
+    const tippingFeeCollected = Number(existing.tippingFeeCollected ?? tippingFee);
+    const gstCollected = Number(existing.gstCollected ?? gst);
+    const totalCollected = Number((tippingFeeCollected + gstCollected).toFixed(2));
 
     if (!Number.isFinite(hairWeight) || hairWeight <= 0) {
       setMessage('Please enter a valid collected weight.');
       return;
     }
 
-    if (!Number.isFinite(moneyCollected) || moneyCollected < 0) {
-      setMessage('Please enter a valid collected amount.');
+    if (!Number.isFinite(tippingFeeCollected) || tippingFeeCollected < 0 || !Number.isFinite(gstCollected) || gstCollected < 0) {
+      setMessage('Please enter valid tipping fee and GST values.');
       return;
     }
 
     try {
       setMessage('Capturing current location and saving confirmation...');
       const { staffLatitude, staffLongitude } = await getCurrentLocation();
+      const nowIso = new Date().toISOString();
 
       updateCollectionLocally(shop.id, {
         status: 'collected',
         hairWeight,
-        moneyCollected,
+        tippingFeeCollected,
+        gstCollected,
+        moneyCollected: totalCollected,
         staffLatitude,
         staffLongitude,
-        collectedAt: new Date().toISOString()
+        collectedAt: nowIso,
+        paymentDate: nowIso
       });
 
       if (shop.collectionId) {
         await client.patch(`/collections/${shop.collectionId}/collect`, {
           hairWeight,
-          amount: moneyCollected,
+          tippingFeeCollected,
+          gstCollected,
+          amount: totalCollected,
+          collectionDate: nowIso,
+          paymentDate: nowIso,
           staffLatitude,
           staffLongitude
         });
@@ -135,6 +188,14 @@ export default function TodayRoutePage() {
 
         {message && <p className="mt-3 rounded-md bg-gray-50 p-2 text-sm text-gray-700">{message}</p>}
 
+        <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+          <div className="rounded-lg bg-green-50 p-3 text-sm"><p className="text-gray-600">Collected shops</p><p className="text-xl font-semibold text-green-700">{stats.collected}</p></div>
+          <div className="rounded-lg bg-red-50 p-3 text-sm"><p className="text-gray-600">Missed shops</p><p className="text-xl font-semibold text-red-700">{stats.missed}</p></div>
+          <div className="rounded-lg bg-yellow-50 p-3 text-sm"><p className="text-gray-600">Not collected</p><p className="text-xl font-semibold text-yellow-700">{stats.notCollected}</p></div>
+          <div className="rounded-lg bg-blue-50 p-3 text-sm"><p className="text-gray-600">Commission (this month)</p><p className="text-xl font-semibold text-blue-700">₹{stats.monthlyCommission.toFixed(2)}</p></div>
+          <div className="rounded-lg bg-indigo-50 p-3 text-sm"><p className="text-gray-600">Commission (this year)</p><p className="text-xl font-semibold text-indigo-700">₹{stats.yearlyCommission.toFixed(2)}</p></div>
+        </div>
+
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[1200px] border-collapse text-sm">
             <thead>
@@ -154,9 +215,7 @@ export default function TodayRoutePage() {
             <tbody>
               {(route?.shops || []).map((shop, index) => {
                 const collectionData = collectionByShopId[shop.id] || {};
-                const tippingFee = Number(shop.tippingFees || 0);
-                const gst = Number(shop.gst ?? ((tippingFee * Number(shop.gstPercentage ?? 18)) / 100).toFixed(2));
-                const total = getDefaultAmount(shop);
+                const { tippingFee, gst, total } = getShopCharges(shop);
                 const isExpanded = expandedRowId === shop.id;
 
                 return (
@@ -189,7 +248,7 @@ export default function TodayRoutePage() {
                     {isExpanded && (
                       <tr className="border-b border-gray-200 bg-gray-50">
                         <td className="p-3" colSpan="10">
-                          <div className="grid gap-2 sm:grid-cols-3">
+                          <div className="grid gap-2 sm:grid-cols-4">
                             <label className="text-xs text-gray-700">
                               Collected weight (kg)
                               <input
@@ -201,13 +260,23 @@ export default function TodayRoutePage() {
                               />
                             </label>
                             <label className="text-xs text-gray-700">
-                              Money collected
+                              Tipping fee collected
                               <input
                                 className="mt-1 w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
                                 type="number"
                                 step="0.01"
-                                value={collectionData.moneyCollected ?? total}
-                                onChange={(event) => updateCollectionLocally(shop.id, { moneyCollected: event.target.value })}
+                                value={collectionData.tippingFeeCollected ?? tippingFee}
+                                onChange={(event) => updateCollectionLocally(shop.id, { tippingFeeCollected: event.target.value })}
+                              />
+                            </label>
+                            <label className="text-xs text-gray-700">
+                              GST collected
+                              <input
+                                className="mt-1 w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                                type="number"
+                                step="0.01"
+                                value={collectionData.gstCollected ?? gst}
+                                onChange={(event) => updateCollectionLocally(shop.id, { gstCollected: event.target.value })}
                               />
                             </label>
                             <div className="flex items-end">
@@ -233,7 +302,7 @@ export default function TodayRoutePage() {
 
         <div className="mt-6">
           <h2 className="mb-2 text-base font-semibold text-gray-800">Route map (all shops)</h2>
-          {mapShops.length ? <ShopMap shops={mapShops} /> : <p className="rounded-md bg-gray-50 p-3 text-sm text-gray-500">No valid shop map data found in this route.</p>}
+          {mapShops.length ? <ShopMap shops={mapShops} staffLocation={staffLocation} /> : <p className="rounded-md bg-gray-50 p-3 text-sm text-gray-500">No valid shop map data found in this route.</p>}
         </div>
       </section>
     </Layout>
