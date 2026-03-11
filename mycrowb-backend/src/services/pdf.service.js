@@ -8,9 +8,13 @@ async function generateReceiptPdf({
   paymentDate,
   shopName,
   collectorName,
-  collectorMobile
+  collectorMobile,
+  persist = true
 }) {
-  const filepath = path.join('uploads', 'receipts', `${receiptNumber}.pdf`);
+  const folder = persist ? path.join('uploads', 'receipts') : path.join('uploads', 'tmp');
+  const filename = persist ? `${receiptNumber}.pdf` : `${receiptNumber}-${Date.now()}.pdf`;
+  const filepath = path.join(folder, filename);
+
   await createPdf(filepath, (doc) => {
     doc.fontSize(20).text('MYCROWB YOUR ECO FRIEND LLP', { align: 'center' });
     doc.moveDown().fontSize(16).text('Collection Payment Receipt', { align: 'center' });
@@ -23,7 +27,7 @@ async function generateReceiptPdf({
       .text(`Collection Staff: ${collectorName || 'Not assigned'}`)
       .text(`Staff Mobile: ${collectorMobile || 'Not available'}`);
   });
-  return `/${filepath}`;
+  return filepath;
 }
 
 async function generateCertificatePdf({
@@ -37,9 +41,12 @@ async function generateCertificatePdf({
   longitude,
   certificateCode,
   issueDate,
-  verifyUrl
+  verifyUrl,
+  persist = true
 }) {
-  const filepath = path.join('uploads', 'certificates', `${certificateCode}.pdf`);
+  const folder = persist ? path.join('uploads', 'certificates') : path.join('uploads', 'tmp');
+  const filename = persist ? `${certificateCode}.pdf` : `${certificateCode}-${Date.now()}.pdf`;
+  const filepath = path.join(folder, filename);
   const qrData = verifyUrl ? await QRCode.toDataURL(verifyUrl) : null;
 
   await createPdf(filepath, (doc) => {
@@ -67,7 +74,7 @@ async function generateCertificatePdf({
     }
   });
 
-  return `/${filepath}`;
+  return filepath;
 }
 
 module.exports = { generateReceiptPdf, generateCertificatePdf };
