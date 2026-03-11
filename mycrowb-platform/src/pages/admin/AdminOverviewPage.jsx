@@ -9,7 +9,9 @@ const adminModules = [
   { label: 'Add staff', to: '/admin/staff' },
   { label: 'Analytics dashboard', to: '/admin/analytics' },
   { label: 'Route optimization', to: '/admin/routes' },
-  { label: 'Ratings dashboard', to: '/admin/ratings' }
+  { label: 'Ratings dashboard', to: '/admin/ratings' },
+  { label: 'Total', to: '/admin/total' },
+  { label: 'Manage fields', to: '/admin/fields' }
 ];
 
 export default function AdminOverviewPage() {

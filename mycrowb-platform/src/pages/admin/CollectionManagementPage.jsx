@@ -99,7 +99,7 @@ export default function CollectionManagementPage() {
         shopRegistrationNumber: row.shopRegistrationNumber || '-',
         shopName: row.shopName || '-',
         ownerName: row.ownerName || '-',
-        whatsappNumber: row.whatsappNumber || '-',
+        whatsappNumber: row.whatsappNumber || row.owner?.mobile || '-',
         collectionStatus,
         paymentStatus,
         monthValue: monthData?.month,
