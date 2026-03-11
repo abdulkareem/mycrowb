@@ -27,7 +27,7 @@ export default function CertificateVerifyPage() {
   };
 
   return (
-    <Layout title="Certificate Verification">
+    <Layout title="Certificate Verification" showLogout={false}>
       <section className="max-w-2xl rounded-xl bg-white p-6 shadow-sm">
         <form className="grid gap-3" onSubmit={verifyCertificate}>
           <input

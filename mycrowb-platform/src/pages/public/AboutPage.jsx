@@ -14,7 +14,7 @@ export default function AboutPage() {
   };
 
   return (
-    <Layout title="About Mycrowb">
+    <Layout title="About Mycrowb" showLogout={false}>
       <button
         type="button"
         onClick={handleBack}
