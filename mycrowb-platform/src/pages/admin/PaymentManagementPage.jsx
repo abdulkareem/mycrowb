@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import client from '../../api/client';
 import Layout from '../../components/layout/Layout';
+import { downloadCsv } from '../../utils/exportCsv';
 
 const monthLabels = [
   { key: 'jan', label: 'Jan' },
@@ -30,6 +31,26 @@ export default function PaymentManagementPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
+  const loadRegisteredStaff = async () => {
+    try {
+      const response = await client.get('/staff');
+      const mapped = (response.data || []).map((staff) => ({
+        id: staff.id,
+        name: staff.name,
+        mobile: staff.mobileNumber || staff.whatsappNumber || '-',
+        staffIdNumber: staff.staffIdNumber || '-',
+        status: staff.isActive ? 'Active' : 'Inactive'
+      }));
+      setStaffOptions((prev) => {
+        const byId = new Map(prev.map((item) => [item.id, item]));
+        mapped.forEach((item) => byId.set(item.id, { ...byId.get(item.id), ...item }));
+        return [...byId.values()].sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+      });
+    } catch (_error) {
+      // fallback to API filter options
+    }
+  };
+
   const loadPayments = async () => {
     setLoading(true);
     try {
@@ -55,6 +76,10 @@ export default function PaymentManagementPage() {
     loadPayments();
   }, [year, clusterName, collectorId]);
 
+  useEffect(() => {
+    loadRegisteredStaff();
+  }, []);
+
   const verifyPayment = async (shopId, month) => {
     try {
       await client.patch(`/collections/admin/payments/${shopId}/${month}/verify`, { year });
@@ -66,6 +91,36 @@ export default function PaymentManagementPage() {
   };
 
   const tableRows = useMemo(() => rows, [rows]);
+
+  const exportPayments = () => {
+    const flatRows = tableRows.map((row) => ({
+      shopRegistrationNumber: row.shopRegistrationNumber || '-',
+      shopName: row.shopName || '-',
+      ownerName: row.ownerName || '-',
+      clusterName: row.clusterName || '-',
+      tippingFee: Number(row.tippingFee || 0).toFixed(2),
+      gst: Number(row.gst || 0).toFixed(2),
+      pendingMonths: row.pendingMonths || 0,
+      collectedMonths: row.collectedMonths || 0,
+      totalFeeCollected: Number(row.totalFeeCollected || 0).toFixed(2),
+      totalGstCollected: Number(row.totalGstCollected || 0).toFixed(2)
+    }));
+
+    downloadCsv(`payments-${year}.csv`, [
+      { key: 'shopRegistrationNumber', header: 'Shop Reg Number' },
+      { key: 'shopName', header: 'Shop Name' },
+      { key: 'ownerName', header: 'Owner Name' },
+      { key: 'clusterName', header: 'Cluster Name' },
+      { key: 'tippingFee', header: 'Tipping Fee' },
+      { key: 'gst', header: 'GST' },
+      { key: 'pendingMonths', header: 'Pending Months' },
+      { key: 'collectedMonths', header: 'Collected Months' },
+      { key: 'totalFeeCollected', header: 'Total Fee Collected' },
+      { key: 'totalGstCollected', header: 'Total GST Collected' }
+    ], flatRows);
+
+    setMessage('Payment data exported successfully.');
+  };
 
   return (
     <Layout title="Payment Management">
@@ -107,12 +162,21 @@ export default function PaymentManagementPage() {
               onChange={(event) => setCollectorId(event.target.value)}
               className="min-w-48 rounded border border-gray-300 px-2 py-1"
             >
-              <option value="">All active collection staff</option>
+              <option value="">All registered collection staff</option>
               {staffOptions.map((staff) => (
-                <option key={staff.id} value={staff.id}>{staff.name} ({staff.mobile})</option>
+                <option key={staff.id} value={staff.id}>{staff.name} ({staff.staffIdNumber || 'No ID'}) - {staff.mobile} [{staff.status || 'Active'}]</option>
               ))}
             </select>
           </div>
+
+          <button
+            type="button"
+            onClick={exportPayments}
+            className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700"
+            disabled={!tableRows.length}
+          >
+            Import as Excel Sheet
+          </button>
 
           <button
             type="button"
