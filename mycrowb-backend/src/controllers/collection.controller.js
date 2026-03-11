@@ -40,7 +40,10 @@ async function markCollection(req, res, next) {
       include: { shop: true }
     });
 
-    const amount = getShopCharges(existing.shop).total;
+    const { tippingFee, gst, total } = getShopCharges(existing.shop);
+    const tippingFeeCollected = req.body.tippingFeeCollected === undefined ? tippingFee : Number(req.body.tippingFeeCollected);
+    const gstCollected = req.body.gstCollected === undefined ? gst : Number(req.body.gstCollected);
+    const amount = Number((tippingFeeCollected + gstCollected).toFixed(2));
 
     const collection = await prisma.collection.update({
       where: { id: req.params.id },
@@ -49,7 +52,10 @@ async function markCollection(req, res, next) {
         collected: true,
         status: 'COLLECTED',
         amount,
-        collectionDate: new Date(),
+        tippingFeeCollected,
+        gstCollected,
+        collectionDate: req.body.collectionDate ? new Date(req.body.collectionDate) : new Date(),
+        paymentDate: req.body.paymentDate ? new Date(req.body.paymentDate) : new Date(),
         staffLatitude: req.body.staffLatitude === undefined ? undefined : Number(req.body.staffLatitude),
         staffLongitude: req.body.staffLongitude === undefined ? undefined : Number(req.body.staffLongitude),
         imageProofUrl: req.file ? `/${req.file.path}` : undefined

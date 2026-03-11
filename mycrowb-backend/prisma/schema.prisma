@@ -138,7 +138,10 @@ model Collection {
   collected      Boolean          @default(false)
   paid           Boolean          @default(false)
   amount         Float
+  tippingFeeCollected Float?
+  gstCollected      Float?
   collectionDate DateTime?
+  paymentDate    DateTime?
   imageProofUrl  String?
   staffLatitude  Float?
   staffLongitude Float?
