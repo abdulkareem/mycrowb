@@ -166,17 +166,27 @@ async function sendWhatsAppOTP(phoneNumber, otp) {
       details
     });
 
+    const whatsappErrorMessage = details?.error?.message || '';
     const tokenExpired = Number(errorCode) === 190 && Number(details?.error?.error_subcode) === 463;
-    const userFacingMessage = tokenExpired
-      ? 'WhatsApp OTP service is temporarily unavailable due to an expired integration token. Please contact support to refresh the WhatsApp configuration.'
-      : 'Failed to send OTP on WhatsApp. Please retry in a moment and verify the number has joined WhatsApp and template is approved.';
+    const appDeleted = Number(errorCode) === 190 && /application has been deleted/i.test(whatsappErrorMessage);
+
+    let userFacingMessage = 'Failed to send OTP on WhatsApp. Please retry in a moment and verify the number has joined WhatsApp and template is approved.';
+    let retryable = true;
+
+    if (tokenExpired) {
+      userFacingMessage = 'WhatsApp OTP service is temporarily unavailable due to an expired integration token. Please contact support to refresh the WhatsApp configuration.';
+      retryable = false;
+    } else if (appDeleted) {
+      userFacingMessage = 'WhatsApp OTP service is unavailable because the connected Meta app was deleted. Please contact support to reconnect WhatsApp credentials.';
+      retryable = false;
+    }
 
     const deliveryError = new Error(userFacingMessage);
     deliveryError.status = 502;
     deliveryError.details = details;
     deliveryError.code = errorCode;
     deliveryError.fbtraceId = fbtraceId;
-    deliveryError.retryable = !tokenExpired;
+    deliveryError.retryable = retryable;
     throw deliveryError;
   }
 }
