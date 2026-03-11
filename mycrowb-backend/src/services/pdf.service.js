@@ -9,7 +9,7 @@ const DARK_TEXT = '#1A1A1A';
 const LIGHT_LINE = '#A5D6A7';
 const RECEIPT_MARGIN = 34;
 const CERTIFICATE_MARGIN = 38;
-const EMBLEM_IMAGE = path.join(__dirname, '..', 'assets', 'mycrowb-emblem.png');
+const EMBLEM_IMAGE = path.join(__dirname, '..', 'assets', 'mycrowbemblem.png');
 
 function valueOrFallback(value, fallback = '-') {
   if (value === null || value === undefined) return fallback;
@@ -186,12 +186,12 @@ async function generateReceiptPdf({
     });
 
     const qrBuffer = Buffer.from(qrData.split(',')[1], 'base64');
-    doc.image(qrBuffer, pageWidth - RECEIPT_MARGIN - 90, y + 4, { fit: [82, 82] });
+    doc.image(qrBuffer, pageWidth - RECEIPT_MARGIN - 90, y + 24, { fit: [82, 82] });
 
     doc.font('Helvetica').fontSize(8.3).fillColor('#5C5C5C').text(
       'This is a computer-generated receipt and does not require handwritten signature or seal.',
       RECEIPT_MARGIN,
-      pageHeight - RECEIPT_MARGIN - 10,
+      pageHeight - RECEIPT_MARGIN - 24,
       { width: contentWidth, align: 'center' }
     );
   }, {
@@ -282,7 +282,7 @@ async function generateCertificatePdf({
 
     let y = doc.y + 14;
     const labelWidth = 150;
-    const rowHeight = 17;
+    const rowHeight = 15.5;
     const rows = [
       ['Shop Reg.No.', valueOrFallback(shopRegNo)],
       ['Shop Name', valueOrFallback(shopName, 'Community Barber Shop')],
@@ -317,28 +317,28 @@ async function generateCertificatePdf({
     doc.font('Helvetica').fontSize(9.5).fillColor('#2D2D2D').text(
       'This certificate remains valid for one year from the issue date and may be cancelled if participation in the Mycrowb program is discontinued for two consecutive months.',
       leftX + 4,
-      y + 31,
+      y + 26,
       { width: contentWidth - 120 }
     );
 
     doc.font('Helvetica-Bold').fontSize(9.5).fillColor(COMPANY_GREEN).text(
       `Verification Link: ${valueOrFallback(verifyUrl, 'Not available')}`,
       leftX + 4,
-      y + 66,
+      y + 57,
       { width: contentWidth - 120 }
     );
 
     if (qrData) {
-      doc.image(Buffer.from(qrData.split(',')[1], 'base64'), pageWidth - CERTIFICATE_MARGIN - 96, y + 36, { width: 88 });
+      doc.image(Buffer.from(qrData.split(',')[1], 'base64'), pageWidth - CERTIFICATE_MARGIN - 96, y + 34, { width: 88 });
     }
 
     doc.font('Helvetica').fontSize(8.5).fillColor('#4E4E4E')
-      .text('This is a computer-generated certificate and does not require handwritten signature or seal.', leftX, pageHeight - CERTIFICATE_MARGIN - 30, {
+      .text('This is a computer-generated certificate and does not require handwritten signature or seal.', leftX, pageHeight - CERTIFICATE_MARGIN - 34, {
         width: contentWidth,
         align: 'center'
       })
       .font('Helvetica-Bold').fontSize(10.2).fillColor('#000')
-      .text('MYCROWB YOUR ECO FRIEND LLP', leftX, pageHeight - CERTIFICATE_MARGIN - 16, {
+      .text('MYCROWB YOUR ECO FRIEND LLP', leftX, pageHeight - CERTIFICATE_MARGIN - 20, {
         width: contentWidth,
         align: 'center'
       });
