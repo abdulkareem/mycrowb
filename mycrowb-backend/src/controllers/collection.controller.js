@@ -536,6 +536,63 @@ async function listMyCollections(req, res, next) {
   }
 }
 
+async function listStaffRouteStatuses(req, res, next) {
+  try {
+    const month = Number(req.query.month || new Date().getMonth() + 1);
+    const year = Number(req.query.year || new Date().getFullYear());
+    const shopIds = String(req.query.shopIds || '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    if (!month || month < 1 || month > 12) {
+      return res.status(400).json({ message: 'Invalid month' });
+    }
+
+    if (!shopIds.length) {
+      return res.json({ month, year, byShopId: {} });
+    }
+
+    const collections = await prisma.collection.findMany({
+      where: {
+        shopId: { in: shopIds },
+        month,
+        year,
+        collectorId: req.user.sub
+      },
+      include: {
+        receipt: true
+      },
+      orderBy: [{ updatedAt: 'desc' }]
+    });
+
+    const byShopId = collections.reduce((acc, collection) => {
+      if (!acc[collection.shopId]) {
+        acc[collection.shopId] = {
+          id: collection.id,
+          status: collection.status,
+          collected: Boolean(collection.collected),
+          paid: Boolean(collection.paid),
+          month: collection.month,
+          year: collection.year,
+          hairWeight: collection.hairWeight,
+          tippingFeeCollected: collection.tippingFeeCollected,
+          gstCollected: collection.gstCollected,
+          amount: collection.amount,
+          collectionDate: collection.collectionDate,
+          paymentDate: collection.paymentDate,
+          receiptUrl: collection.receipt?.pdfUrl || null
+        };
+      }
+      return acc;
+    }, {});
+
+    return res.json({ month, year, byShopId });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 module.exports = {
   markCollection,
   markPayment,
@@ -543,5 +600,6 @@ module.exports = {
   markCollectionByShopMonth,
   issueReceipt,
   listAdminPayments,
-  listMyCollections
+  listMyCollections,
+  listStaffRouteStatuses
 };
