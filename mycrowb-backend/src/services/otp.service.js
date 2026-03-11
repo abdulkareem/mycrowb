@@ -88,7 +88,7 @@ async function sendWhatsAppPin(phoneNumber, pin) {
   const recipient = formatWhatsappRecipient(phoneNumber);
   const url = `${whatsappApiUrl.replace(/\/$/, '')}/${whatsappPhoneNumberId}/messages`;
 
-  const payload = {
+  const basePayload = {
     messaging_product: 'whatsapp',
     to: recipient,
     type: 'template',
@@ -101,7 +101,17 @@ async function sendWhatsAppPin(phoneNumber, pin) {
           parameters: [
             { type: 'text', text: `${pin}` }
           ]
-        },
+        }
+      ]
+    }
+  };
+
+  const withUrlButtonPayload = {
+    ...basePayload,
+    template: {
+      ...basePayload.template,
+      components: [
+        ...basePayload.template.components,
         {
           type: 'button',
           sub_type: 'url',
@@ -114,16 +124,34 @@ async function sendWhatsAppPin(phoneNumber, pin) {
     }
   };
 
+  const withoutUrlButtonPayload = basePayload;
+
+  const postTemplatePayload = (payload) => axios.post(url, payload, {
+    headers: {
+      Authorization: `Bearer ${whatsappAccessToken}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
   try {
-    const response = await axios.post(url, payload, {
-      headers: {
-        Authorization: `Bearer ${whatsappAccessToken}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    const response = await postTemplatePayload(withUrlButtonPayload);
 
     return response.data;
   } catch (error) {
+    const code = error.response?.data?.error?.code;
+    if (code === 132000) {
+      try {
+        const response = await postTemplatePayload(withoutUrlButtonPayload);
+        // eslint-disable-next-line no-console
+        console.warn('WhatsApp PIN delivery succeeded after retrying without URL button parameter', { recipient });
+        return response.data;
+      } catch (retryError) {
+        const retryDetails = retryError.response?.data || { message: retryError.message };
+        // eslint-disable-next-line no-console
+        console.error('WhatsApp PIN delivery retry failed', { recipient, details: retryDetails });
+      }
+    }
+
     const details = error.response?.data || { message: error.message };
     // eslint-disable-next-line no-console
     console.error('WhatsApp PIN delivery failed', { recipient, details });
