@@ -10,6 +10,7 @@ const LIGHT_LINE = '#A5D6A7';
 const RECEIPT_MARGIN = 34;
 const CERTIFICATE_MARGIN = 38;
 const EMBLEM_IMAGE = path.join(__dirname, '..', 'assets', 'mycrowbemblem.png');
+const CURRENCY_FONT_PATH = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
 
 function valueOrFallback(value, fallback = '-') {
   if (value === null || value === undefined) return fallback;
@@ -20,6 +21,14 @@ function valueOrFallback(value, fallback = '-') {
 function formatCurrency(value) {
   const amount = Number(value || 0);
   return `₹ ${amount.toFixed(2)}`;
+}
+
+function applyCurrencyFont(doc) {
+  if (fs.existsSync(CURRENCY_FONT_PATH)) {
+    doc.registerFont('CurrencyFont', CURRENCY_FONT_PATH);
+    return doc.font('CurrencyFont');
+  }
+  return doc;
 }
 
 function formatDate(value) {
@@ -175,10 +184,17 @@ async function generateReceiptPdf({
 
     y += 26;
     doc.font('Helvetica').fontSize(9.4).fillColor(DARK_TEXT)
-      .text(`Subtotal: ${formatCurrency(amount)}`, RECEIPT_MARGIN, y, { width: contentWidth, align: 'right' })
-      .text(`GST: ${formatCurrency(gst)}`, RECEIPT_MARGIN, y + 14, { width: contentWidth, align: 'right' });
+      .text('Subtotal:', RECEIPT_MARGIN, y, { width: contentWidth - 90, align: 'right' })
+      .text('GST:', RECEIPT_MARGIN, y + 14, { width: contentWidth - 90, align: 'right' });
+
+    applyCurrencyFont(doc).fontSize(9.4).fillColor(DARK_TEXT)
+      .text(formatCurrency(amount), RECEIPT_MARGIN, y, { width: contentWidth, align: 'right' })
+      .text(formatCurrency(gst), RECEIPT_MARGIN, y + 14, { width: contentWidth, align: 'right' });
+
     doc.font('Helvetica-Bold').fontSize(10.5).fillColor(COMPANY_GREEN)
-      .text(`Total Amount Paid: ${formatCurrency(resolvedTotal)}`, RECEIPT_MARGIN, y + 30, { width: contentWidth, align: 'right' });
+      .text('Total Amount Paid:', RECEIPT_MARGIN, y + 30, { width: contentWidth - 120, align: 'right' });
+    applyCurrencyFont(doc).fontSize(10.5).fillColor(COMPANY_GREEN)
+      .text(formatCurrency(resolvedTotal), RECEIPT_MARGIN, y + 30, { width: contentWidth, align: 'right' });
 
     y += 46;
     drawSectionTitle(doc, 'Verification & Collection Info', RECEIPT_MARGIN, y, contentWidth);
@@ -329,19 +345,26 @@ async function generateCertificatePdf({
       .text(`Certificate Code: ${valueOrFallback(certificateCode, 'Not issued')}`, leftX + 4, y)
       .text(`Issue Date: ${new Date(issueDate).toDateString()}`, leftX + 4, y + 12);
 
-    drawSingleLineText(
-      doc.font('Helvetica').fontSize(8.6).fillColor('#2D2D2D'),
+    const disclaimerY = y + 24;
+    doc.font('Helvetica').fontSize(8.6).fillColor('#2D2D2D').text(
       'This certificate remains valid for one year from the issue date and may be cancelled if participation in the Mycrowb program is discontinued for two consecutive months.',
       leftX + 4,
-      y + 24,
-      contentWidth - 120
+      disclaimerY,
+      {
+        width: contentWidth - 120,
+        align: 'left'
+      }
     );
+
+    const disclaimerBottomY = doc.y;
+    const threeLineGap = doc.currentLineHeight() * 3;
+    const verificationY = disclaimerBottomY + threeLineGap;
 
     drawSingleLineText(
       doc.font('Helvetica-Bold').fontSize(9.1).fillColor(COMPANY_GREEN),
       `Verification Link: ${valueOrFallback(verifyUrl, 'Not available')}`,
       leftX + 4,
-      y + 36,
+      verificationY,
       contentWidth - 120
     );
 

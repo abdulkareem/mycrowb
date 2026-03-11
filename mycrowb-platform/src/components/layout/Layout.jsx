@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import client from '../../api/client';
 
-export default function Layout({ title, children }) {
+export default function Layout({ title, children, showLogout = true }) {
   const navigate = useNavigate();
 
   const logout = async () => {
@@ -27,9 +27,11 @@ export default function Layout({ title, children }) {
       <header className="sticky top-0 z-20 bg-primaryGreen p-4 text-white shadow-sm">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between">
           <h1 className="font-heading font-semibold">MYCROWB</h1>
-          <button type="button" onClick={logout} className="rounded border border-white/60 px-2 py-1 text-xs">
-            Logout
-          </button>
+          {showLogout ? (
+            <button type="button" onClick={logout} className="rounded border border-white/60 px-2 py-1 text-xs">
+              Logout
+            </button>
+          ) : null}
         </div>
       </header>
       <main className="mx-auto w-full max-w-6xl p-4">

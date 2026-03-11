@@ -1,9 +1,21 @@
+import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
 
 const PATENT_CERTIFICATE_JPG_URL =
   "https://raw.githubusercontent.com/abdulkareem/mycrowb/main/mycrowb-backend/src/assets/Patent_hair_kareem_page-0001.jpg";
 
 export default function AboutPage() {
+  const navigate = useNavigate();
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+
+    navigate('/');
+  };
+
   return (
     <Layout title="About Mycrowb">
       <div className="space-y-8">
