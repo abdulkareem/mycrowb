@@ -49,7 +49,15 @@ async function listShops(req, res, next) {
       ? { [sortField]: sortOrder }
       : { shopName: 'asc' };
 
+
+    const where = {};
+    if (req.query.clusterName) where.clusterName = req.query.clusterName;
+    if (req.query.place) where.place = req.query.place;
+    if (req.query.localBody) where.localBody = req.query.localBody;
+    if (req.query.status && ['ACTIVE', 'INACTIVE'].includes(req.query.status)) where.status = req.query.status;
+
     const shops = await prisma.barberShop.findMany({
+      where,
       include: {
         owner: true,
         certificates: {

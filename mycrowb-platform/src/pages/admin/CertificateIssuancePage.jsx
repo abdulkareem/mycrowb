@@ -167,14 +167,15 @@ export default function CertificateIssuancePage() {
           <table className="w-full min-w-[1100px] border-collapse text-sm">
             <thead>
               <tr className="bg-gray-100 text-left">
-                <th className="p-2">Photo</th><th className="p-2">Name</th><th className="p-2">Address</th><th className="p-2">WhatsApp</th><th className="p-2">Mobile</th><th className="p-2">Aadhaar</th><th className="p-2">Vehicle</th><th className="p-2">Clusters</th><th className="p-2">Staff ID</th><th className="p-2">Commission/shop</th><th className="p-2">Salary/month</th><th className="p-2">Actions</th>
+                <th className="p-2">Photo</th><th className="p-2">Name</th><th className="p-2">Status</th><th className="p-2">Address</th><th className="p-2">WhatsApp</th><th className="p-2">Mobile</th><th className="p-2">Aadhaar</th><th className="p-2">Vehicle</th><th className="p-2">Clusters</th><th className="p-2">Staff ID</th><th className="p-2">Commission/shop</th><th className="p-2">Salary/month</th><th className="p-2">Actions</th>
               </tr>
             </thead>
             <tbody>
               {staffList.map((staff) => (
                 <tr className="border-b border-gray-200" key={staff.id}>
-                  <td className="p-2"><img alt={staff.name} className="h-12 w-12 rounded object-cover" src={`${baseUploadUrl}${staff.photoUrl}`} /></td>
+                  <td className="p-2"><img alt={staff.name} className="h-20 w-20 rounded object-cover" src={`${baseUploadUrl}${staff.photoUrl}`} /></td>
                   <td className="p-2">{staff.name}</td>
+                  <td className="p-2">{staff.isActive ? 'Active' : 'Inactive'}</td>
                   <td className="p-2">{staff.address}</td>
                   <td className="p-2">{staff.whatsappNumber}</td>
                   <td className="p-2">{staff.mobileNumber}</td>
@@ -187,7 +188,7 @@ export default function CertificateIssuancePage() {
                   <td className="p-2">
                     <div className="flex gap-2">
                       <button className="rounded-md border border-primaryGreen px-2 py-1 text-xs text-primaryGreen" onClick={() => toggleStatus(staff.id)} type="button">
-                        {staff.isActive ? 'Inactive' : 'Active'}
+                        {staff.isActive ? 'Set Inactive' : 'Set Active'}
                       </button>
                       <button className="rounded-md border border-red-400 px-2 py-1 text-xs text-red-600" onClick={() => deleteStaff(staff.id)} type="button">Delete</button>
                     </div>
@@ -196,7 +197,7 @@ export default function CertificateIssuancePage() {
               ))}
               {!staffList.length && (
                 <tr>
-                  <td className="p-4 text-center text-gray-500" colSpan="12">No staff records yet. Click "Add new staff" to create one.</td>
+                  <td className="p-4 text-center text-gray-500" colSpan="13">No staff records yet. Click "Add new staff" to create one.</td>
                 </tr>
               )}
             </tbody>

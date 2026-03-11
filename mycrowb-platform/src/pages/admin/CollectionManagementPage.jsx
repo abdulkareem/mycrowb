@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import client from '../../api/client';
 import Layout from '../../components/layout/Layout';
 
@@ -20,6 +21,7 @@ const monthOptions = [
 const defaultSummary = { pending: 0, collected: 0, missed: 0 };
 
 export default function CollectionManagementPage() {
+  const navigate = useNavigate();
   const currentDate = new Date();
   const [rows, setRows] = useState([]);
   const [clusterOptions, setClusterOptions] = useState([]);
@@ -112,34 +114,13 @@ export default function CollectionManagementPage() {
     });
   }, [rows, selectedMonthKey, sortField, sortOrder]);
 
-  const verifyCollection = async (row) => {
-    if (!row.monthValue) {
-      setMessage('This row has no collection record for the selected month.');
-      return;
-    }
-
-    try {
-      await client.patch(`/collections/admin/payments/${row.id}/${row.monthValue}/verify`, { year });
-      setMessage('Verified successfully. Receipt generated and notification sent to the shop dashboard.');
-      loadCollectionData();
-    } catch (_error) {
-      setMessage('Unable to verify this row.');
-    }
-  };
-
-  const setSorting = (field) => {
-    if (sortField === field) {
-      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-      return;
-    }
-    setSortField(field);
-    setSortOrder('asc');
-  };
-
   return (
     <Layout title="Collection Management">
       <section className="rounded-xl bg-white p-6 shadow-sm">
-        <p className="text-gray-700">Monitor pending, collected, and missed pickups from database records.</p>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <p className="text-gray-700">Monitor pending, collected, and missed pickups from database records.</p>
+          <button type="button" onClick={() => navigate('/admin/overview')} className="rounded border border-gray-300 px-3 py-1.5 text-sm">Back</button>
+        </div>
 
         <div className="mt-4 grid gap-2 text-sm text-gray-700 sm:grid-cols-3">
           <div className="rounded-md bg-lightGreen/40 p-3">Pending: {summary.pending}</div>
@@ -147,109 +128,7 @@ export default function CollectionManagementPage() {
           <div className="rounded-md bg-lightGreen/40 p-3">Missed: {summary.missed}</div>
         </div>
 
-        <div className="mt-4 grid gap-3 rounded-lg border border-gray-200 p-3 md:grid-cols-5">
-          <div>
-            <label className="mb-1 block text-xs uppercase text-gray-600" htmlFor="cluster-scope">Cluster scope</label>
-            <select
-              id="cluster-scope"
-              className="w-full rounded border border-gray-300 px-2 py-1"
-              value={clusterScope}
-              onChange={(event) => {
-                setClusterScope(event.target.value);
-                if (event.target.value === 'ALL') setClusterName('');
-              }}
-            >
-              <option value="REGISTERED">Registered clusters</option>
-              <option value="ALL">All clusters</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-xs uppercase text-gray-600" htmlFor="cluster-filter">Cluster</label>
-            <select
-              id="cluster-filter"
-              className="w-full rounded border border-gray-300 px-2 py-1"
-              value={clusterName}
-              onChange={(event) => setClusterName(event.target.value)}
-              disabled={clusterScope !== 'REGISTERED'}
-            >
-              <option value="">Select cluster</option>
-              {clusterOptions.map((cluster) => (
-                <option key={cluster} value={cluster}>{cluster}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-xs uppercase text-gray-600" htmlFor="month-filter">Month</label>
-            <select
-              id="month-filter"
-              className="w-full rounded border border-gray-300 px-2 py-1"
-              value={month}
-              onChange={(event) => setMonth(Number(event.target.value))}
-            >
-              {monthOptions.map((item) => (
-                <option key={item.key} value={item.value}>{item.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-xs uppercase text-gray-600" htmlFor="year-filter">Year</label>
-            <input
-              id="year-filter"
-              type="number"
-              className="w-full rounded border border-gray-300 px-2 py-1"
-              value={year}
-              onChange={(event) => setYear(Number(event.target.value) || currentDate.getFullYear())}
-            />
-          </div>
-        </div>
-
         {message && <p className="mt-3 text-sm text-gray-700">{message}</p>}
-
-        <div className="mt-4 overflow-x-auto">
-          <table className="min-w-full border-collapse text-left text-sm">
-            <thead>
-              <tr className="border-b bg-gray-50 text-xs uppercase text-gray-600">
-                <th className="p-2"><button type="button" onClick={() => setSorting('shopRegistrationNumber')}>Shop Reg Number</button></th>
-                <th className="p-2"><button type="button" onClick={() => setSorting('shopName')}>Shop Name</button></th>
-                <th className="p-2"><button type="button" onClick={() => setSorting('ownerName')}>Owner Name</button></th>
-                <th className="p-2"><button type="button" onClick={() => setSorting('whatsappNumber')}>WhatsApp Number</button></th>
-                <th className="p-2"><button type="button" onClick={() => setSorting('collectionStatus')}>Waste Collection Status</button></th>
-                <th className="p-2"><button type="button" onClick={() => setSorting('paymentStatus')}>Payment</button></th>
-                <th className="p-2">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {!loading && tableRows.map((row) => (
-                <tr key={row.id} className="border-b">
-                  <td className="p-2">{row.shopRegistrationNumber}</td>
-                  <td className="p-2">{row.shopName}</td>
-                  <td className="p-2">{row.ownerName}</td>
-                  <td className="p-2">{row.whatsappNumber}</td>
-                  <td className="p-2">{row.collectionStatus}</td>
-                  <td className="p-2">{row.paymentStatus}</td>
-                  <td className="p-2">
-                    {row.verified ? (
-                      <span className="text-xs text-green-700">Verified</span>
-                    ) : (
-                      <button
-                        type="button"
-                        className="rounded bg-primaryGreen px-2 py-1 text-xs text-white"
-                        onClick={() => verifyCollection(row)}
-                      >
-                        Verify
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {loading && <p className="p-3 text-sm text-gray-600">Loading collection rows...</p>}
-          {!loading && !tableRows.length && <p className="p-3 text-sm text-gray-600">No collection rows found for the selected filters.</p>}
-        </div>
       </section>
     </Layout>
   );

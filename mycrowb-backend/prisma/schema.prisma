@@ -76,6 +76,9 @@ model LoginActivity {
   role       UserRole
   loginAt    DateTime  @default(now())
   logoutAt   DateTime?
+  latitude   Float?
+  longitude  Float?
+  locationLabel String?
   createdAt  DateTime  @default(now())
   user       User?     @relation(fields: [userId], references: [id])
 

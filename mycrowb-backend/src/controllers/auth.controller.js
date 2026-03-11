@@ -2,6 +2,7 @@ const prisma = require('../config/prisma');
 const { sendOtp, verifyOtp } = require('../services/otp.service');
 const { signToken } = require('../utils/jwt');
 const { mobileLookupVariants, normalizeMobile } = require('../utils/mobile');
+const { ensureLoginActivityLocationColumns } = require('../utils/db-capabilities');
 
 const notRegisteredMessage = 'User is not registered. Contact the company at mycrowbee@gmail.com.';
 const fallbackSuperAdminNumbers = new Set(['9747917623']);
@@ -212,11 +213,16 @@ async function verifyOtpLogin(req, res, next) {
 
     const token = signToken({ sub: user.id, role: tokenRole, mobile: user.mobile });
 
+    await ensureLoginActivityLocationColumns();
+
     const activity = await prisma.loginActivity.create({
       data: {
         userId: user.id,
         mobile: user.mobile,
-        role: tokenRole
+        role: tokenRole,
+        latitude: req.body.latitude !== undefined ? Number(req.body.latitude) : null,
+        longitude: req.body.longitude !== undefined ? Number(req.body.longitude) : null,
+        locationLabel: req.body.locationLabel || null
       }
     });
 
