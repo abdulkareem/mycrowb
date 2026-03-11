@@ -164,6 +164,14 @@ async function requestOtp(req, res, next) {
     await sendOtp(normalizedMobile);
     return res.json({ message: 'OTP sent successfully' });
   } catch (error) {
+    if (error.status === 502) {
+      return res.status(502).json({
+        message: 'We could not deliver your OTP/PIN on WhatsApp. Please retry in a moment.',
+        retryable: true,
+        details: error.details || null
+      });
+    }
+
     return next(error);
   }
 }
