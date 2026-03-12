@@ -34,7 +34,7 @@ module.exports = {
   whatsappTemplateLanguage: process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'en_US',
   whatsappTemplateParamMode: process.env.WHATSAPP_TEMPLATE_PARAM_MODE || 'otp_only',
   whatsappTemplateAppName: process.env.WHATSAPP_TEMPLATE_APP_NAME || 'MYCROWB Hair Waste Recycling Network',
-  whatsappTemplateBodyParameterName: process.env.WHATSAPP_TEMPLATE_BODY_PARAMETER_NAME || 'code',
+  whatsappTemplateBodyParameterName: process.env.WHATSAPP_TEMPLATE_BODY_PARAMETER_NAME || '',
   whatsappTemplateButtonUrlIndex: process.env.WHATSAPP_TEMPLATE_BUTTON_URL_INDEX || '',
   whatsappTemplateButtonUrlValue: process.env.WHATSAPP_TEMPLATE_BUTTON_URL_VALUE || '',
   osrmBaseUrl: process.env.OSRM_BASE_URL || 'https://router.project-osrm.org',

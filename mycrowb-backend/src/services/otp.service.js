@@ -221,13 +221,15 @@ function buildTemplateButtonComponent() {
 }
 
 function buildTemplateParameters(otpCode) {
-  const otpParameter = whatsappTemplateBodyParameterName
-    ? { type: 'text', parameter_name: whatsappTemplateBodyParameterName, text: otpCode }
-    : { type: 'text', text: otpCode };
+  const otpParameter = { type: 'text', text: otpCode };
 
   switch (whatsappTemplateParamMode) {
     case 'otp_only':
       return [otpParameter];
+    case 'named_otp_only':
+      return [
+        { type: 'text', parameter_name: whatsappTemplateBodyParameterName || 'code', text: otpCode }
+      ];
     case 'app_name_and_otp':
     default:
       return [
