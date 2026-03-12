@@ -12,7 +12,10 @@ const {
   whatsappTemplateName,
   whatsappTemplateLanguage,
   whatsappTemplateParamMode,
-  whatsappTemplateAppName
+  whatsappTemplateAppName,
+  whatsappTemplateBodyParameterName,
+  whatsappTemplateButtonUrlIndex,
+  whatsappTemplateButtonUrlValue
 } = require('../config/env');
 const { normalizeMobile } = require('../utils/mobile');
 const prisma = require('../config/prisma');
@@ -105,6 +108,18 @@ async function sendWhatsAppOTP(phoneNumber, otp) {
 
   const normalizedMobile = normalizeMobile(phoneNumber);
 
+  const components = [
+    {
+      type: 'body',
+      parameters: templateParameters
+    }
+  ];
+
+  const buttonComponent = buildTemplateButtonComponent();
+  if (buttonComponent) {
+    components.push(buttonComponent);
+  }
+
   const payload = {
     messaging_product: 'whatsapp',
     to: recipient,
@@ -112,12 +127,7 @@ async function sendWhatsAppOTP(phoneNumber, otp) {
     template: {
       name: whatsappTemplateName,
       language: { code: whatsappTemplateLanguage },
-      components: [
-        {
-          type: 'body',
-          parameters: templateParameters
-        }
-      ]
+      components
     }
   };
 
@@ -191,15 +201,38 @@ async function sendWhatsAppOTP(phoneNumber, otp) {
   }
 }
 
+
+function buildTemplateButtonComponent() {
+  if (whatsappTemplateButtonUrlIndex === '' || whatsappTemplateButtonUrlValue === '') {
+    return null;
+  }
+
+  return {
+    type: 'button',
+    sub_type: 'url',
+    index: String(whatsappTemplateButtonUrlIndex),
+    parameters: [
+      {
+        type: 'text',
+        text: whatsappTemplateButtonUrlValue
+      }
+    ]
+  };
+}
+
 function buildTemplateParameters(otpCode) {
+  const otpParameter = whatsappTemplateBodyParameterName
+    ? { type: 'text', parameter_name: whatsappTemplateBodyParameterName, text: otpCode }
+    : { type: 'text', text: otpCode };
+
   switch (whatsappTemplateParamMode) {
     case 'otp_only':
-      return [{ type: 'text', text: otpCode }];
+      return [otpParameter];
     case 'app_name_and_otp':
     default:
       return [
         { type: 'text', text: whatsappTemplateAppName },
-        { type: 'text', text: otpCode }
+        otpParameter
       ];
   }
 }
