@@ -8,15 +8,15 @@ const {
   twilioWhatsappFrom,
   whatsappPhoneNumberId,
   whatsappAccessToken,
-  whatsappApiUrl,
-  whatsappTemplateName,
-  whatsappTemplateLanguage
+  whatsappApiUrl
 } = require('../config/env');
 const { normalizeMobile } = require('../utils/mobile');
 const prisma = require('../config/prisma');
 
 const memoryOtp = new Map();
 const client = twilioAccountSid && twilioAuthToken ? twilio(twilioAccountSid, twilioAuthToken) : null;
+const OTP_TEMPLATE_NAME = 'logincode';
+const OTP_TEMPLATE_LANGUAGE = 'en_US';
 
 async function sendOtp(mobile) {
   const normalizedMobile = normalizeMobile(mobile);
@@ -106,9 +106,8 @@ async function sendWhatsAppOTP(phoneNumber, otp) {
   console.log('WhatsApp OTP request config', {
     endpoint: url,
     recipient,
-    templateName: whatsappTemplateName,
-    templateLanguage: whatsappTemplateLanguage,
-    parameterCount: payload.template.components[0].parameters.length,
+    templateName: OTP_TEMPLATE_NAME,
+    templateLanguage: OTP_TEMPLATE_LANGUAGE,
     otpLength: otpCode.length
   });
 
@@ -178,9 +177,9 @@ function buildTemplatePayload({ recipient, otpCode }) {
     to: recipient,
     type: 'template',
     template: {
-      name: whatsappTemplateName,
+      name: OTP_TEMPLATE_NAME,
       language: {
-        code: whatsappTemplateLanguage
+        code: OTP_TEMPLATE_LANGUAGE
       },
       components: [
         {
