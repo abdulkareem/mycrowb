@@ -10,12 +10,7 @@ const {
   whatsappAccessToken,
   whatsappApiUrl,
   whatsappTemplateName,
-  whatsappTemplateLanguage,
-  whatsappTemplateParamMode,
-  whatsappTemplateAppName,
-  whatsappTemplateBodyParameterName,
-  whatsappTemplateButtonUrlIndex,
-  whatsappTemplateButtonUrlValue
+  whatsappTemplateLanguage
 } = require('../config/env');
 const { normalizeMobile } = require('../utils/mobile');
 const prisma = require('../config/prisma');
@@ -103,27 +98,27 @@ async function sendWhatsAppOTP(phoneNumber, otp) {
 
   const recipient = formatWhatsappRecipient(phoneNumber);
   const url = `${whatsappApiUrl.replace(/\/$/, '')}/${whatsappPhoneNumberId}/messages`;
-  const otpCode = otp || `${Math.floor(100000 + Math.random() * 900000)}`;
+  const otpCode = String(otp || `${Math.floor(100000 + Math.random() * 900000)}`);
   const normalizedMobile = normalizeMobile(phoneNumber);
-  const primaryPayloadConfig = buildTemplatePayload({ recipient, otpCode });
+  const payload = buildTemplatePayload({ recipient, otpCode });
 
   // eslint-disable-next-line no-console
-  console.log('WhatsApp template request config', {
+  console.log('WhatsApp OTP request config', {
+    endpoint: url,
+    recipient,
     templateName: whatsappTemplateName,
     templateLanguage: whatsappTemplateLanguage,
-    parameterCount: primaryPayloadConfig.parameterCount,
-    parameterMode: whatsappTemplateParamMode
-  });
-
-  const postTemplatePayload = (payload) => axios.post(url, payload, {
-    headers: {
-      Authorization: `Bearer ${whatsappAccessToken}`,
-      'Content-Type': 'application/json'
-    }
+    parameterCount: payload.template.components[0].parameters.length,
+    otpLength: otpCode.length
   });
 
   try {
-    const response = await postTemplatePayload(primaryPayloadConfig.payload);
+    const response = await axios.post(url, payload, {
+      headers: {
+        Authorization: `Bearer ${whatsappAccessToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
 
     memoryOtp.set(normalizedMobile, otpCode);
 
@@ -140,52 +135,12 @@ async function sendWhatsAppOTP(phoneNumber, otp) {
     console.log('WhatsApp API response:', response.data);
     return response.data;
   } catch (error) {
-    let effectiveError = error;
-    let details = effectiveError.response?.data || { message: effectiveError.message };
-    let errorCode = details?.error?.code || effectiveError.code || null;
-    let fbtraceId = details?.error?.fbtrace_id || null;
-
-    if (Number(errorCode) === 131008) {
-      const fallbackPayloadConfig = buildTemplatePayload({
-        recipient,
-        otpCode,
-        forceAuthenticationButton: true
-      });
-
-      try {
-        // eslint-disable-next-line no-console
-        console.warn('Retrying WhatsApp template with authentication button payload fallback', {
-          templateName: whatsappTemplateName,
-          parameterCount: fallbackPayloadConfig.parameterCount
-        });
-
-        const fallbackResponse = await postTemplatePayload(fallbackPayloadConfig.payload);
-
-        memoryOtp.set(normalizedMobile, otpCode);
-
-        await prisma.user.updateMany({
-          where: { mobile: normalizedMobile },
-          data: {
-            userPin: otpCode,
-            pinAttempts: 0,
-            pinCreatedAt: new Date()
-          }
-        });
-
-        // eslint-disable-next-line no-console
-        console.log('WhatsApp API response (fallback payload):', fallbackResponse.data);
-        return fallbackResponse.data;
-      } catch (fallbackError) {
-        // continue with existing error handling using fallback failure details
-        effectiveError = fallbackError;
-        details = effectiveError.response?.data || { message: effectiveError.message };
-        errorCode = details?.error?.code || effectiveError.code || null;
-        fbtraceId = details?.error?.fbtrace_id || null;
-      }
-    }
+    const details = error.response?.data || { message: error.message };
+    const errorCode = details?.error?.code || error.code || null;
+    const fbtraceId = details?.error?.fbtrace_id || null;
 
     // eslint-disable-next-line no-console
-    console.error('WhatsApp PIN delivery failed', {
+    console.error('WhatsApp OTP delivery failed', {
       recipient,
       errorCode,
       fbtraceId,
@@ -217,86 +172,29 @@ async function sendWhatsAppOTP(phoneNumber, otp) {
   }
 }
 
-function buildTemplatePayload({ recipient, otpCode, forceAuthenticationButton = false }) {
-  const templateParameters = forceAuthenticationButton ? [] : buildTemplateParameters(otpCode);
-
-  const components = [];
-  if (templateParameters.length) {
-    components.push({
-      type: 'body',
-      parameters: templateParameters
-    });
-  }
-
-  const buttonComponent = buildTemplateButtonComponent(otpCode, forceAuthenticationButton);
-  if (buttonComponent) {
-    components.push(buttonComponent);
-  }
-
+function buildTemplatePayload({ recipient, otpCode }) {
   return {
-    parameterCount: templateParameters.length,
-    payload: {
-      messaging_product: 'whatsapp',
-      to: recipient,
-      type: 'template',
-      template: {
-        name: whatsappTemplateName,
-        language: { code: whatsappTemplateLanguage },
-        components
-      }
-    }
-  };
-}
-
-function buildTemplateButtonComponent(otpCode, forceAuthenticationButton = false) {
-  if (forceAuthenticationButton) {
-    return {
-      type: 'button',
-      sub_type: 'copy_code',
-      index: '0',
-      parameters: [
+    messaging_product: 'whatsapp',
+    to: recipient,
+    type: 'template',
+    template: {
+      name: whatsappTemplateName,
+      language: {
+        code: whatsappTemplateLanguage
+      },
+      components: [
         {
-          type: 'payload',
-          payload: otpCode
+          type: 'body',
+          parameters: [
+            {
+              type: 'text',
+              text: String(otpCode)
+            }
+          ]
         }
       ]
-    };
-  }
-
-  if (whatsappTemplateButtonUrlIndex === '' || whatsappTemplateButtonUrlValue === '') {
-    return null;
-  }
-
-  return {
-    type: 'button',
-    sub_type: 'url',
-    index: String(whatsappTemplateButtonUrlIndex),
-    parameters: [
-      {
-        type: 'text',
-        text: whatsappTemplateButtonUrlValue
-      }
-    ]
+    }
   };
-}
-
-function buildTemplateParameters(otpCode) {
-  const otpParameter = { type: 'text', text: otpCode };
-
-  switch (whatsappTemplateParamMode) {
-    case 'otp_only':
-      return [otpParameter];
-    case 'named_otp_only':
-      return [
-        { type: 'text', parameter_name: whatsappTemplateBodyParameterName || 'code', text: otpCode }
-      ];
-    case 'app_name_and_otp':
-    default:
-      return [
-        { type: 'text', text: whatsappTemplateAppName },
-        otpParameter
-      ];
-  }
 }
 
 module.exports = { sendOtp, verifyOtp, sendWhatsappMessage, sendWhatsAppPin, sendWhatsAppOTP };
