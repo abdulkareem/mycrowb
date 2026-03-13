@@ -1,12 +1,42 @@
+const crypto = require('crypto');
 const prisma = require('../config/prisma');
-const { sendOtp, verifyOtp, sendWhatsAppPin } = require('../services/otp.service');
+const { sendOtp, verifyOtp, sendWhatsAppPin, sendWhatsAppMagicLink } = require('../services/otp.service');
 const { signToken } = require('../utils/jwt');
 const { mobileLookupVariants, normalizeMobile } = require('../utils/mobile');
 const { ensureLoginActivityLocationColumns } = require('../utils/db-capabilities');
+const { magicLinkExpiryMinutes, magicLinkRateLimitSeconds } = require('../config/env');
 
 const notRegisteredMessage = 'User is not registered. Contact the company at mycrowbee@gmail.com.';
 const fallbackSuperAdminNumbers = new Set(['9747917623']);
 const MAX_PIN_ATTEMPTS = 4;
+
+
+function generateLoginToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+async function enforceMagicLinkRateLimit(normalizedMobile) {
+  const latestToken = await prisma.loginToken.findFirst({
+    where: { mobile: normalizedMobile },
+    orderBy: { createdAt: 'desc' },
+    select: { createdAt: true }
+  });
+
+  if (!latestToken) return;
+
+  const retryAfterMs = (latestToken.createdAt.getTime() + (magicLinkRateLimitSeconds * 1000)) - Date.now();
+  if (retryAfterMs > 0) {
+    const error = new Error(`Please wait ${Math.ceil(retryAfterMs / 1000)} seconds before requesting another link.`);
+    error.status = 429;
+    throw error;
+  }
+}
+
+function resolveMagicLinkUserName(user, providedName) {
+  if (providedName && String(providedName).trim()) return String(providedName).trim();
+  if (user?.name && String(user.name).trim()) return String(user.name).trim();
+  return 'User';
+}
 
 function generatePin() {
   return `${Math.floor(100000 + Math.random() * 900000)}`;
@@ -124,6 +154,100 @@ async function getPortalUserByRole(role, normalizedMobile) {
   }
 
   return null;
+}
+
+
+async function requestMagicLink(req, res, next) {
+  try {
+    const { mobile, whatsappNumber, role, name } = req.body;
+    const normalizedMobile = normalizeMobile(whatsappNumber || mobile);
+
+    if (!normalizedMobile) {
+      return res.status(400).json({ success: false, message: 'Valid mobile number is required.' });
+    }
+
+    if (!['barber', 'staff', 'admin'].includes(role)) {
+      return res.status(400).json({ success: false, message: 'Role must be barber, staff, or admin.' });
+    }
+
+    let user = null;
+
+    if (role === 'barber' || role === 'staff') {
+      user = await getPortalUserByRole(role, normalizedMobile);
+      if (!user) {
+        return res.status(404).json({ success: false, message: notRegisteredMessage });
+      }
+    } else if (role === 'admin') {
+      const authorizedAdmin = await findAuthorizedAdminNumber(normalizedMobile);
+      const existingAdminUser = await findExistingAdminUser(normalizedMobile);
+
+      if (!authorizedAdmin && !existingAdminUser) {
+        return res.status(404).json({ success: false, message: notRegisteredMessage });
+      }
+
+      user = existingAdminUser;
+    }
+
+    await enforceMagicLinkRateLimit(normalizedMobile);
+
+    const token = generateLoginToken();
+    const expiresAt = new Date(Date.now() + (magicLinkExpiryMinutes * 60 * 1000));
+
+    await prisma.loginToken.create({
+      data: {
+        mobile: normalizedMobile,
+        token,
+        expiresAt
+      }
+    });
+
+    await sendWhatsAppMagicLink(normalizedMobile, resolveMagicLinkUserName(user, name), token);
+
+    return res.json({
+      success: true,
+      message: 'Verification link sent successfully',
+      expiresInSeconds: magicLinkExpiryMinutes * 60
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function verifyLoginToken(req, res, next) {
+  try {
+    const token = String(req.query.t || '').trim();
+    if (!token) {
+      return res.status(400).json({ success: false, error: 'Missing token' });
+    }
+
+    const record = await prisma.loginToken.findUnique({
+      where: { token }
+    });
+
+    if (!record) {
+      return res.status(401).json({ success: false, error: 'Invalid token' });
+    }
+
+    if (record.used) {
+      return res.status(401).json({ success: false, error: 'Token already used' });
+    }
+
+    if (record.expiresAt < new Date()) {
+      return res.status(401).json({ success: false, error: 'Token expired' });
+    }
+
+    await prisma.loginToken.update({
+      where: { token },
+      data: { used: true }
+    });
+
+    return res.json({
+      success: true,
+      mobile: record.mobile
+    });
+  } catch (error) {
+    return next(error);
+  }
 }
 
 async function requestOtp(req, res, next) {
@@ -385,4 +509,4 @@ async function checkAdminEligibility(req, res, next) {
   }
 }
 
-module.exports = { requestOtp, verifyOtpLogin, loginWithPin, me, logout, checkAdminEligibility };
+module.exports = { requestOtp, verifyOtpLogin, loginWithPin, me, logout, checkAdminEligibility, requestMagicLink, verifyLoginToken };

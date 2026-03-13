@@ -62,6 +62,18 @@ model User {
   loginActivities LoginActivity[]
 }
 
+
+model LoginToken {
+  id        String   @id @default(cuid())
+  mobile    String
+  token     String   @unique
+  used      Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([mobile, createdAt])
+}
+
 model AuthorizedAdminNumber {
   id            String   @id @default(cuid())
   mobile        String   @unique

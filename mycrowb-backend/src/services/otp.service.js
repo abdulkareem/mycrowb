@@ -7,7 +7,9 @@ const {
   twilioWhatsappFrom,
   whatsappPhoneNumberId,
   whatsappAccessToken,
-  whatsappApiUrl
+  whatsappApiUrl,
+  whatsappMagicTemplateName,
+  whatsappMagicTemplateLanguage
 } = require('../config/env');
 const { normalizeMobile } = require('../utils/mobile');
 const prisma = require('../config/prisma');
@@ -165,4 +167,63 @@ async function sendWhatsAppOTP(phoneNumber, otp) {
   return data;
 }
 
-module.exports = { sendOtp, verifyOtp, sendWhatsappMessage, sendWhatsAppPin, sendWhatsAppOTP };
+
+async function sendWhatsAppMagicLink(phoneNumber, userName, token) {
+  const recipient = formatWhatsappRecipient(phoneNumber);
+  const url = `${whatsappApiUrl}/${whatsappPhoneNumberId}/messages`;
+
+  const payload = {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to: recipient,
+    type: 'template',
+    template: {
+      name: whatsappMagicTemplateName,
+      language: {
+        code: whatsappMagicTemplateLanguage
+      },
+      components: [
+        {
+          type: 'body',
+          parameters: [
+            {
+              type: 'text',
+              text: String(userName || 'User')
+            }
+          ]
+        },
+        {
+          type: 'button',
+          sub_type: 'url',
+          index: '0',
+          parameters: [
+            {
+              type: 'text',
+              text: String(token)
+            }
+          ]
+        }
+      ]
+    }
+  };
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${whatsappAccessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await response.json();
+
+  if (!response.ok || data.error) {
+    const message = data?.error?.message || `WhatsApp API request failed with status ${response.status}`;
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+module.exports = { sendOtp, verifyOtp, sendWhatsappMessage, sendWhatsAppPin, sendWhatsAppOTP, sendWhatsAppMagicLink };
