@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
 import client from '../../api/client';
 
-const BUSINESS_NUMBER = import.meta.env.VITE_BUSINESS_WHATSAPP_NUMBER || '919999999999';
+const BUSINESS_NUMBER = import.meta.env.VITE_BUSINESS_WHATSAPP_NUMBER || '9744917623';
 const DEVICE_ID_KEY = 'mycrowbDeviceId';
 
 const roleDashboard = {
@@ -159,7 +159,7 @@ export default function LoginPage() {
   };
 
   return (
-    <Layout title="MyCrowb Login">
+    <Layout title="MyCrowb Login" showLogout={false}>
       <section className="max-w-xl rounded-xl bg-white p-6 shadow-sm">
         <div className="grid gap-3">
           <label className="grid gap-1 text-sm font-medium text-gray-700">
