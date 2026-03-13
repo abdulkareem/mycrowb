@@ -1,5 +1,4 @@
 const twilio = require('twilio');
-const axios = require('axios');
 const {
   twilioAccountSid,
   twilioAuthToken,
@@ -15,8 +14,6 @@ const prisma = require('../config/prisma');
 
 const memoryOtp = new Map();
 const client = twilioAccountSid && twilioAuthToken ? twilio(twilioAccountSid, twilioAuthToken) : null;
-const OTP_TEMPLATE_NAME = 'logincode';
-const OTP_TEMPLATE_LANGUAGE = 'en_US';
 
 async function sendOtp(mobile) {
   const normalizedMobile = normalizeMobile(mobile);
@@ -92,94 +89,18 @@ async function sendWhatsAppPin(phoneNumber, pin) {
 }
 
 async function sendWhatsAppOTP(phoneNumber, otp) {
-  if (!whatsappPhoneNumberId || !whatsappAccessToken || !whatsappApiUrl) {
-    throw new Error('Missing WhatsApp Cloud API configuration');
-  }
-
   const recipient = formatWhatsappRecipient(phoneNumber);
-  const url = `${whatsappApiUrl.replace(/\/$/, '')}/${whatsappPhoneNumberId}/messages`;
   const otpCode = String(otp || `${Math.floor(100000 + Math.random() * 900000)}`);
-  const normalizedMobile = normalizeMobile(phoneNumber);
-  const payload = buildTemplatePayload({ recipient, otpCode });
+  const url = `https://graph.facebook.com/v19.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
 
-  // eslint-disable-next-line no-console
-  console.log('WhatsApp OTP request config', {
-    endpoint: url,
-    recipient,
-    templateName: OTP_TEMPLATE_NAME,
-    templateLanguage: OTP_TEMPLATE_LANGUAGE,
-    otpLength: otpCode.length
-  });
-
-  try {
-    const response = await axios.post(url, payload, {
-      headers: {
-        Authorization: `Bearer ${whatsappAccessToken}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    memoryOtp.set(normalizedMobile, otpCode);
-
-    await prisma.user.updateMany({
-      where: { mobile: normalizedMobile },
-      data: {
-        userPin: otpCode,
-        pinAttempts: 0,
-        pinCreatedAt: new Date()
-      }
-    });
-
-    // eslint-disable-next-line no-console
-    console.log('WhatsApp API response:', response.data);
-    return response.data;
-  } catch (error) {
-    const details = error.response?.data || { message: error.message };
-    const errorCode = details?.error?.code || error.code || null;
-    const fbtraceId = details?.error?.fbtrace_id || null;
-
-    // eslint-disable-next-line no-console
-    console.error('WhatsApp OTP delivery failed', {
-      recipient,
-      errorCode,
-      fbtraceId,
-      details
-    });
-
-    const whatsappErrorMessage = details?.error?.message || '';
-    const tokenExpired = Number(errorCode) === 190 && Number(details?.error?.error_subcode) === 463;
-    const appDeleted = Number(errorCode) === 190 && /application has been deleted/i.test(whatsappErrorMessage);
-
-    let userFacingMessage = 'Failed to send OTP on WhatsApp. Please retry in a moment and verify the number has joined WhatsApp and template is approved.';
-    let retryable = true;
-
-    if (tokenExpired) {
-      userFacingMessage = 'WhatsApp OTP service is temporarily unavailable due to an expired integration token. Please contact support to refresh the WhatsApp configuration.';
-      retryable = false;
-    } else if (appDeleted) {
-      userFacingMessage = 'WhatsApp OTP service is unavailable because the connected Meta app was deleted. Please contact support to reconnect WhatsApp credentials.';
-      retryable = false;
-    }
-
-    const deliveryError = new Error(userFacingMessage);
-    deliveryError.status = 502;
-    deliveryError.details = details;
-    deliveryError.code = errorCode;
-    deliveryError.fbtraceId = fbtraceId;
-    deliveryError.retryable = retryable;
-    throw deliveryError;
-  }
-}
-
-function buildTemplatePayload({ recipient, otpCode }) {
-  return {
+  const payload = {
     messaging_product: 'whatsapp',
     to: recipient,
     type: 'template',
     template: {
-      name: OTP_TEMPLATE_NAME,
+      name: 'logincode',
       language: {
-        code: OTP_TEMPLATE_LANGUAGE
+        code: 'en_US'
       },
       components: [
         {
@@ -194,6 +115,37 @@ function buildTemplatePayload({ recipient, otpCode }) {
       ]
     }
   };
+
+  // eslint-disable-next-line no-console
+  console.log('WhatsApp payload:', JSON.stringify(payload, null, 2));
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await response.json();
+
+  // eslint-disable-next-line no-console
+  console.log('WhatsApp response:', data);
+
+  const normalizedMobile = normalizeMobile(phoneNumber);
+  memoryOtp.set(normalizedMobile, otpCode);
+
+  await prisma.user.updateMany({
+    where: { mobile: normalizedMobile },
+    data: {
+      userPin: otpCode,
+      pinAttempts: 0,
+      pinCreatedAt: new Date()
+    }
+  });
+
+  return data;
 }
 
 module.exports = { sendOtp, verifyOtp, sendWhatsappMessage, sendWhatsAppPin, sendWhatsAppOTP };
