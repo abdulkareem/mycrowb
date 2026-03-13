@@ -111,6 +111,17 @@ async function sendWhatsAppOTP(phoneNumber, otp) {
               text: String(otpCode)
             }
           ]
+        },
+        {
+          type: 'button',
+          sub_type: 'url',
+          index: '0',
+          parameters: [
+            {
+              type: 'text',
+              text: String(otpCode)
+            }
+          ]
         }
       ]
     }
@@ -132,6 +143,11 @@ async function sendWhatsAppOTP(phoneNumber, otp) {
 
   // eslint-disable-next-line no-console
   console.log('WhatsApp response:', data);
+
+  if (!response.ok || data.error) {
+    const message = data?.error?.message || `WhatsApp API request failed with status ${response.status}`;
+    throw new Error(message);
+  }
 
   const normalizedMobile = normalizeMobile(phoneNumber);
   memoryOtp.set(normalizedMobile, otpCode);
