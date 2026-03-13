@@ -1,6 +1,26 @@
 const router = require('express').Router();
-const { requestOtp, verifyOtpLogin, loginWithPin, me, logout, checkAdminEligibility, requestMagicLink, verifyLoginToken } = require('../controllers/auth.controller');
+const {
+  requestOtp,
+  verifyOtpLogin,
+  loginWithPin,
+  me,
+  logout,
+  checkAdminEligibility,
+  requestMagicLink,
+  verifyLoginToken,
+  checkUser,
+  verifyCode,
+  setPin,
+  loginWithDevicePin,
+  whatsappWebhook
+} = require('../controllers/auth.controller');
 const { authorize } = require('../middleware/auth.middleware');
+
+router.get('/check-user', checkUser);
+router.post('/verify-code', verifyCode);
+router.post('/set-pin', setPin);
+router.post('/device-login', loginWithDevicePin);
+router.post('/whatsapp/webhook', whatsappWebhook);
 
 router.post('/request-otp', requestOtp);
 router.post('/request-magic-link', requestMagicLink);

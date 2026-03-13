@@ -1,6 +1,7 @@
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const prisma = require('../config/prisma');
-const { sendOtp, verifyOtp, sendWhatsAppPin, sendWhatsAppMagicLink } = require('../services/otp.service');
+const { sendOtp, verifyOtp, sendWhatsAppPin, sendWhatsAppMagicLink, sendVerificationCodeMessage } = require('../services/otp.service');
 const { signToken } = require('../utils/jwt');
 const { mobileLookupVariants, normalizeMobile } = require('../utils/mobile');
 const { ensureLoginActivityLocationColumns } = require('../utils/db-capabilities');
@@ -509,4 +510,156 @@ async function checkAdminEligibility(req, res, next) {
   }
 }
 
-module.exports = { requestOtp, verifyOtpLogin, loginWithPin, me, logout, checkAdminEligibility, requestMagicLink, verifyLoginToken };
+
+const FIRST_LOGIN_CODE_EXPIRY_MINUTES = 5;
+const FIRST_LOGIN_REQUEST_WINDOW_SECONDS = 60;
+
+function roleToLegacy(userRole) {
+  if (userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') return 'admin';
+  if (userRole === 'SERVICE_STAFF') return 'staff';
+  return 'stylist';
+}
+
+async function checkUser(req, res, next) {
+  try {
+    const normalizedMobile = normalizeMobile(req.query.mobile);
+    if (!normalizedMobile) return res.status(400).json({ message: 'Valid mobile number is required.' });
+
+    const user = await prisma.user.findFirst({
+      where: { mobile: { in: mobileLookupVariants(normalizedMobile) } },
+      select: { id: true, role: true, firstLogin: true }
+    });
+
+    if (!user) return res.json({ exists: false });
+
+    return res.json({ exists: true, firstLogin: Boolean(user.firstLogin), role: roleToLegacy(user.role) });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function verifyCode(req, res, next) {
+  try {
+    const normalizedMobile = normalizeMobile(req.body.mobile);
+    const code = String(req.body.code || '').trim();
+    if (!normalizedMobile || !/^\d{6}$/.test(code)) {
+      return res.status(400).json({ message: 'Valid mobile and 6 digit code are required.' });
+    }
+
+    const record = await prisma.verificationCode.findFirst({
+      where: { mobile: normalizedMobile, code, used: false },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (!record || record.expiresAt < new Date()) {
+      return res.status(400).json({ message: 'Invalid or expired verification code.' });
+    }
+
+    await prisma.verificationCode.update({ where: { id: record.id }, data: { used: true } });
+    return res.json({ verified: true });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function setPin(req, res, next) {
+  try {
+    const normalizedMobile = normalizeMobile(req.body.mobile);
+    const pin = String(req.body.pin || '').trim();
+    const deviceId = String(req.body.deviceId || '').trim();
+
+    if (!normalizedMobile || !/^\d{4}$/.test(pin) || !deviceId) {
+      return res.status(400).json({ message: 'Valid mobile, 4 digit PIN and deviceId are required.' });
+    }
+
+    const user = await prisma.user.findFirst({
+      where: { mobile: { in: mobileLookupVariants(normalizedMobile) } }
+    });
+
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+
+    const pinHash = await bcrypt.hash(pin, 10);
+
+    await prisma.$transaction([
+      prisma.device.upsert({
+        where: { userId_deviceId: { userId: user.id, deviceId } },
+        update: { pinHash },
+        create: { userId: user.id, deviceId, pinHash }
+      }),
+      prisma.user.update({ where: { id: user.id }, data: { firstLogin: false, pinAttempts: 0 } })
+    ]);
+
+    const token = signToken({ sub: user.id, role: user.role, mobile: user.mobile });
+    return res.json({ success: true, token, user: { id: user.id, mobile: user.mobile, role: user.role } });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function loginWithDevicePin(req, res, next) {
+  try {
+    const normalizedMobile = normalizeMobile(req.body.mobile);
+    const pin = String(req.body.pin || '').trim();
+    const deviceId = String(req.body.deviceId || '').trim();
+
+    if (!normalizedMobile || !/^\d{4}$/.test(pin) || !deviceId) {
+      return res.status(400).json({ message: 'Valid mobile, 4 digit PIN and deviceId are required.' });
+    }
+
+    const user = await prisma.user.findFirst({
+      where: { mobile: { in: mobileLookupVariants(normalizedMobile) } }
+    });
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+
+    const device = await prisma.device.findUnique({
+      where: { userId_deviceId: { userId: user.id, deviceId } }
+    });
+
+    if (!device) {
+      return res.status(403).json({ message: 'New device detected. WhatsApp verification required.', requiresVerification: true });
+    }
+
+    if ((user.pinAttempts || 0) >= 5) {
+      return res.status(403).json({ message: 'PIN attempts exceeded. Verify WhatsApp again.', requiresVerification: true });
+    }
+
+    const validPin = await bcrypt.compare(pin, device.pinHash);
+    if (!validPin) {
+      const updated = await prisma.user.update({ where: { id: user.id }, data: { pinAttempts: { increment: 1 } }, select: { pinAttempts: true } });
+      return res.status(400).json({ message: 'Incorrect PIN.', attempts: updated.pinAttempts, remainingAttempts: Math.max(0, 5 - updated.pinAttempts) });
+    }
+
+    await prisma.user.update({ where: { id: user.id }, data: { pinAttempts: 0 } });
+    const token = signToken({ sub: user.id, role: user.role, mobile: user.mobile });
+    return res.json({ success: true, token, user: { id: user.id, mobile: user.mobile, role: user.role } });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function whatsappWebhook(req, res, next) {
+  try {
+    const message = req.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+    if (!message) return res.sendStatus(200);
+
+    const text = String(message.text?.body || '').trim().toLowerCase();
+    const mobile = normalizeMobile(message.from);
+    if (!mobile || text !== 'hi') return res.sendStatus(200);
+
+    const latest = await prisma.verificationCode.findFirst({ where: { mobile }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } });
+    if (latest && (Date.now() - latest.createdAt.getTime()) < (FIRST_LOGIN_REQUEST_WINDOW_SECONDS * 1000)) {
+      return res.status(429).json({ message: 'Please wait before requesting another verification code.' });
+    }
+
+    const code = `${Math.floor(100000 + Math.random() * 900000)}`;
+    const expiresAt = new Date(Date.now() + (FIRST_LOGIN_CODE_EXPIRY_MINUTES * 60 * 1000));
+
+    await prisma.verificationCode.create({ data: { mobile, code, expiresAt } });
+    await sendVerificationCodeMessage(mobile, code);
+    return res.sendStatus(200);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+module.exports = { requestOtp, verifyOtpLogin, loginWithPin, me, logout, checkAdminEligibility, requestMagicLink, verifyLoginToken, checkUser, verifyCode, setPin, loginWithDevicePin, whatsappWebhook };

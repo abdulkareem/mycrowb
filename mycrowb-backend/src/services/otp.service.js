@@ -229,4 +229,41 @@ async function sendWhatsAppMagicLink(phoneNumber, userName, token) {
   return data;
 }
 
-module.exports = { sendOtp, verifyOtp, sendWhatsappMessage, sendWhatsAppPin, sendWhatsAppOTP, sendWhatsAppMagicLink };
+
+async function sendVerificationCodeMessage(phoneNumber, code) {
+  const message = `Welcome to MyCrowb. Your verification code is ${code}`;
+  const recipient = formatWhatsappRecipient(phoneNumber);
+
+  if (whatsappPhoneNumberId && whatsappAccessToken && whatsappApiUrl) {
+    const url = `${whatsappApiUrl}/${whatsappPhoneNumberId}/messages`;
+    const payload = {
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to: recipient,
+      type: 'text',
+      text: { body: message }
+    };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${whatsappAccessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+    if (!response.ok || data.error) {
+      const err = new Error(data?.error?.message || `WhatsApp API request failed with status ${response.status}`);
+      err.status = 502;
+      throw err;
+    }
+
+    return data;
+  }
+
+  return sendWhatsappMessage(phoneNumber, message);
+}
+
+module.exports = { sendOtp, verifyOtp, sendWhatsappMessage, sendWhatsAppPin, sendWhatsAppOTP, sendWhatsAppMagicLink, sendVerificationCodeMessage };
