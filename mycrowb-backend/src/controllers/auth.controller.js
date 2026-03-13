@@ -131,10 +131,13 @@ async function requestOtp(req, res, next) {
     const { mobile, whatsappNumber, role } = req.body;
     const normalizedMobile = normalizeMobile(whatsappNumber || mobile);
 
+    // eslint-disable-next-line no-console
+    console.log('OTP request received', { role, mobile: normalizedMobile });
+
     if (role === 'barber' || role === 'staff') {
       const user = await getPortalUserByRole(role, normalizedMobile);
       if (!user) {
-        return res.status(404).json({ message: notRegisteredMessage });
+        return res.status(404).json({ success: false, message: notRegisteredMessage });
       }
 
       const newPin = generatePin();
@@ -149,7 +152,7 @@ async function requestOtp(req, res, next) {
         }
       });
 
-      return res.json({ message: 'PIN sent successfully', pinRequested: true });
+      return res.json({ success: true, message: 'OTP sent successfully' });
     }
 
     if (role === 'admin') {
@@ -157,16 +160,27 @@ async function requestOtp(req, res, next) {
       const existingAdminUser = await findExistingAdminUser(normalizedMobile);
 
       if (!authorizedAdmin && !existingAdminUser) {
-        return res.status(404).json({ message: notRegisteredMessage });
+        return res.status(404).json({ success: false, message: notRegisteredMessage });
       }
     }
 
     await sendOtp(normalizedMobile);
-    return res.json({ message: 'OTP sent successfully' });
+    // eslint-disable-next-line no-console
+    console.log('OTP sent successfully', { role, mobile: normalizedMobile });
+    return res.json({ success: true, message: 'OTP sent successfully' });
   } catch (error) {
     if (error.status === 502) {
+      // eslint-disable-next-line no-console
+      console.error('OTP request failed', {
+        mobile: req.body?.whatsappNumber || req.body?.mobile,
+        error: error.message,
+        details: error.details || null
+      });
+
       return res.status(502).json({
-        message: error.message || 'We could not deliver your OTP/PIN on WhatsApp. Please retry in a moment.',
+        success: false,
+        message: 'Failed to send OTP',
+        error: error.message || 'We could not deliver your OTP/PIN on WhatsApp. Please retry in a moment.',
         retryable: error.retryable !== undefined ? error.retryable : true,
         details: error.details || null
       });
