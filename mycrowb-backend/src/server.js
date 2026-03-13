@@ -29,6 +29,7 @@ app.use(
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 app.use('/api/v1', routes);
+app.use('/api', routes);
 app.use(errorHandler);
 
 app.listen(port, () => {

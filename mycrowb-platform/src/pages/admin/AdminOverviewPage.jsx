@@ -12,7 +12,8 @@ const adminModules = [
   { label: 'Ratings dashboard', to: '/admin/ratings' },
   { label: 'Total', to: '/admin/total' },
   { label: 'Manage fields', to: '/admin/fields' },
-  { label: 'Track staff', to: '/admin/track-staff' }
+  { label: 'Track staff', to: '/admin/track-staff' },
+  { label: 'New registration requests', to: '/admin/registration-requests' }
 ];
 
 export default function AdminOverviewPage() {
