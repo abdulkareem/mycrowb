@@ -91,10 +91,11 @@ async function sendWhatsAppPin(phoneNumber, pin) {
 async function sendWhatsAppOTP(phoneNumber, otp) {
   const recipient = formatWhatsappRecipient(phoneNumber);
   const otpCode = String(otp || `${Math.floor(100000 + Math.random() * 900000)}`);
-  const url = `https://graph.facebook.com/v19.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
+  const url = `${whatsappApiUrl}/${whatsappPhoneNumberId}/messages`;
 
   const payload = {
     messaging_product: 'whatsapp',
+    recipient_type: 'individual',
     to: recipient,
     type: 'template',
     template: {
@@ -133,7 +134,7 @@ async function sendWhatsAppOTP(phoneNumber, otp) {
   const response = await fetch(url, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
+      Authorization: `Bearer ${whatsappAccessToken}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify(payload)
