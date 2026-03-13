@@ -9,7 +9,8 @@ const {
   whatsappAccessToken,
   whatsappApiUrl,
   whatsappMagicTemplateName,
-  whatsappMagicTemplateLanguage
+  whatsappMagicTemplateLanguage,
+  magicLinkBaseUrl
 } = require('../config/env');
 const { normalizeMobile } = require('../utils/mobile');
 const prisma = require('../config/prisma');
@@ -171,6 +172,8 @@ async function sendWhatsAppOTP(phoneNumber, otp) {
 async function sendWhatsAppMagicLink(phoneNumber, userName, token) {
   const recipient = formatWhatsappRecipient(phoneNumber);
   const url = `${whatsappApiUrl}/${whatsappPhoneNumberId}/messages`;
+  const linkSeparator = magicLinkBaseUrl.includes('?') ? '&' : '?';
+  const verificationLink = `${magicLinkBaseUrl}${linkSeparator}t=${encodeURIComponent(String(token))}`;
 
   const payload = {
     messaging_product: 'whatsapp',
@@ -199,7 +202,7 @@ async function sendWhatsAppMagicLink(phoneNumber, userName, token) {
           parameters: [
             {
               type: 'text',
-              text: String(token)
+              text: verificationLink
             }
           ]
         }
