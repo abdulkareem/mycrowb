@@ -562,6 +562,26 @@ async function verifyCode(req, res, next) {
   }
 }
 
+async function checkVerification(req, res, next) {
+  try {
+    const normalizedMobile = normalizeMobile(req.query.mobile);
+    if (!normalizedMobile) {
+      return res.status(400).json({ message: 'Valid mobile number is required.' });
+    }
+
+    const latestRecord = await prisma.verificationCode.findFirst({
+      where: { mobile: normalizedMobile },
+      orderBy: { createdAt: 'desc' },
+      select: { used: true, expiresAt: true }
+    });
+
+    const verified = Boolean(latestRecord?.used && latestRecord.expiresAt >= new Date());
+    return res.json({ verified });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function setPin(req, res, next) {
   try {
     const normalizedMobile = normalizeMobile(req.body.mobile);
@@ -639,27 +659,62 @@ async function loginWithDevicePin(req, res, next) {
 
 async function whatsappWebhook(req, res, next) {
   try {
-    const message = req.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
-    if (!message) return res.sendStatus(200);
+    const entries = Array.isArray(req.body?.entry) ? req.body.entry : [];
 
-    const text = String(message.text?.body || '').trim().toLowerCase();
-    const mobile = normalizeMobile(message.from);
-    if (!mobile || text !== 'hi') return res.sendStatus(200);
+    for (const entry of entries) {
+      const changes = Array.isArray(entry?.changes) ? entry.changes : [];
+      for (const change of changes) {
+        const value = change?.value;
+        const message = value?.messages?.[0];
+        if (!message) continue;
 
-    const latest = await prisma.verificationCode.findFirst({ where: { mobile }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } });
-    if (latest && (Date.now() - latest.createdAt.getTime()) < (FIRST_LOGIN_REQUEST_WINDOW_SECONDS * 1000)) {
-      return res.status(429).json({ message: 'Please wait before requesting another verification code.' });
+        const text = String(message.text?.body || '').trim().toLowerCase();
+        const mobile = normalizeMobile(message.from);
+        if (!mobile || text !== 'hi') continue;
+
+        const user = await prisma.user.findFirst({
+          where: { mobile: { in: mobileLookupVariants(mobile) } },
+          select: { id: true }
+        });
+        if (!user) continue;
+
+        const latest = await prisma.verificationCode.findFirst({
+          where: { mobile },
+          orderBy: { createdAt: 'desc' },
+          select: { createdAt: true }
+        });
+
+        if (latest && (Date.now() - latest.createdAt.getTime()) < (FIRST_LOGIN_REQUEST_WINDOW_SECONDS * 1000)) {
+          continue;
+        }
+
+        const code = `${Math.floor(100000 + Math.random() * 900000)}`;
+        const expiresAt = new Date(Date.now() + (FIRST_LOGIN_CODE_EXPIRY_MINUTES * 60 * 1000));
+
+        await prisma.verificationCode.create({ data: { mobile, code, expiresAt } });
+        await sendVerificationCodeMessage(mobile, code);
+      }
     }
 
-    const code = `${Math.floor(100000 + Math.random() * 900000)}`;
-    const expiresAt = new Date(Date.now() + (FIRST_LOGIN_CODE_EXPIRY_MINUTES * 60 * 1000));
-
-    await prisma.verificationCode.create({ data: { mobile, code, expiresAt } });
-    await sendVerificationCodeMessage(mobile, code);
     return res.sendStatus(200);
   } catch (error) {
     return next(error);
   }
 }
 
-module.exports = { requestOtp, verifyOtpLogin, loginWithPin, me, logout, checkAdminEligibility, requestMagicLink, verifyLoginToken, checkUser, verifyCode, setPin, loginWithDevicePin, whatsappWebhook };
+module.exports = {
+  requestOtp,
+  verifyOtpLogin,
+  loginWithPin,
+  me,
+  logout,
+  checkAdminEligibility,
+  requestMagicLink,
+  verifyLoginToken,
+  checkUser,
+  verifyCode,
+  checkVerification,
+  setPin,
+  loginWithDevicePin,
+  whatsappWebhook
+};

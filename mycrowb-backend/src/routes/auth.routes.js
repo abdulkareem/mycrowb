@@ -10,6 +10,7 @@ const {
   verifyLoginToken,
   checkUser,
   verifyCode,
+  checkVerification,
   setPin,
   loginWithDevicePin,
   whatsappWebhook
@@ -18,6 +19,7 @@ const { authorize } = require('../middleware/auth.middleware');
 
 router.get('/check-user', checkUser);
 router.post('/verify-code', verifyCode);
+router.get('/check-verification', checkVerification);
 router.post('/set-pin', setPin);
 router.post('/device-login', loginWithDevicePin);
 router.post('/whatsapp/webhook', whatsappWebhook);
