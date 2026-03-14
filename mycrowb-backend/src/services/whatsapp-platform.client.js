@@ -9,6 +9,8 @@ const { normalizeMobile } = require('../utils/mobile');
 
 const MAX_RETRIES = 3;
 const BASE_BACKOFF_MS = 300;
+const DEFAULT_WHATSAPP_API = 'https://whatsappplatform-production.up.railway.app/api/messages/send';
+const DEFAULT_WHATSAPP_API_KEY = 'fdbf0504626128f64e4ecb27de92c2ed1ab29600a20b02f2';
 
 function sleep(ms) {
   return new Promise((resolve) => {
@@ -28,19 +30,19 @@ function sanitizeForLog(value) {
   return `***${digits.slice(-4)}`;
 }
 
-function buildClient() {
+function buildRequestConfig() {
   const baseURL = String(whatsappPlatformBaseUrl || '').replace(/\/$/, '');
+  const path = whatsappPlatformSendPath || '/api/messages/send';
+  const url = baseURL ? `${baseURL}${path.startsWith('/') ? '' : '/'}${path}` : DEFAULT_WHATSAPP_API;
+  const apiKey = whatsappPlatformApiKey || DEFAULT_WHATSAPP_API_KEY;
 
-  if (!baseURL || !whatsappPlatformApiKey) {
+  if (!apiKey) {
     const error = new Error('WhatsApp platform client is not configured.');
     error.status = 500;
     throw error;
   }
 
-  return axios.create({
-    baseURL,
-    timeout: whatsappPlatformTimeoutMs
-  });
+  return { url, apiKey };
 }
 
 function validateOutboundMessage({ mobile, message }) {
@@ -72,19 +74,19 @@ function validateOutboundMessage({ mobile, message }) {
 }
 
 async function sendMessageToPlatform({ mobile, message, correlationId }) {
-  const client = buildClient();
+  const { url, apiKey } = buildRequestConfig();
   const payload = validateOutboundMessage({ mobile, message });
-  const path = whatsappPlatformSendPath || '/api/messages/send';
 
   let attempt = 0;
   let lastError;
 
   while (attempt <= MAX_RETRIES) {
     try {
-      const response = await client.post(path, payload, {
+      const response = await axios.post(url, payload, {
+        timeout: whatsappPlatformTimeoutMs,
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': whatsappPlatformApiKey,
+          'X-API-KEY': apiKey,
           'x-correlation-id': correlationId || ''
         }
       });
