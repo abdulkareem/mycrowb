@@ -3,7 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
-const { port, trustProxy } = require('./config/env');
+const { port, trustProxy, webhookVerifyToken, appApiKey } = require('./config/env');
 const routes = require('./routes');
 const { errorHandler } = require('./middleware/error.middleware');
 const { whatsappWebhook } = require('./controllers/auth.controller');
@@ -31,13 +31,13 @@ app.use(
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
 const verifyWebhook = (req, res) => {
-  const VERIFY_TOKEN = 'Kareem@123';
+  const verifyToken = webhookVerifyToken;
 
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
 
-  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+  if (mode === 'subscribe' && verifyToken && token === verifyToken) {
     // eslint-disable-next-line no-console
     console.log('Webhook verified');
     res.status(200).send(challenge);
@@ -47,11 +47,29 @@ const verifyWebhook = (req, res) => {
   res.sendStatus(403);
 };
 
+
+const verifyAppApiKey = (req, res, next) => {
+  const configuredApiKey = appApiKey;
+  if (!configuredApiKey) return next();
+
+  const incomingApiKey = req.get('x-api-key')
+    || req.query.api_key
+    || req.query.app_api_key
+    || req.body?.api_key
+    || req.body?.app_api_key;
+
+  if (incomingApiKey !== configuredApiKey) {
+    return res.status(401).json({ success: false, message: 'Invalid APP API key.' });
+  }
+
+  return next();
+};
+
 app.get('/webhook', verifyWebhook);
 app.get('/webhook/whatsapp', verifyWebhook);
 
-app.post('/webhook', whatsappWebhook);
-app.post('/webhook/whatsapp', whatsappWebhook);
+app.post('/webhook', verifyAppApiKey, whatsappWebhook);
+app.post('/webhook/whatsapp', verifyAppApiKey, whatsappWebhook);
 
 app.use('/api/v1', routes);
 app.use('/api', routes);

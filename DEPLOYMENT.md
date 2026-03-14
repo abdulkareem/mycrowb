@@ -11,6 +11,7 @@
 2. Set environment variables from `mycrowb-backend/.env.example`.
 3. Attach PostgreSQL and set `DATABASE_URL` (must begin with `postgresql://` or `postgres://`). On Railway, prefer referencing `Postgres.DATABASE_URL`.
 4. Run migrations command: `npx prisma migrate deploy`.
+5. Set `APP_API_KEY` (used to validate incoming WhatsApp webhook POSTs) and set `WEBHOOK_VERIFY_TOKEN` (used for Meta webhook verification; defaults to `APP_API_KEY` if omitted).
 
 ## Frontend (Cloudflare Pages)
 1. Connect the repository root (this repo now includes a root `wrangler.toml` for Pages).
