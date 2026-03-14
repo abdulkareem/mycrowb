@@ -29,6 +29,8 @@ module.exports = {
   twilioWhatsappFrom: process.env.TWILIO_WHATSAPP_FROM,
   whatsappPhoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
   whatsappAccessToken: process.env.WHATSAPP_ACCESS_TOKEN,
+  appApiKey: process.env.APP_API_KEY,
+  webhookVerifyToken: process.env.WEBHOOK_VERIFY_TOKEN || process.env.APP_API_KEY,
   whatsappApiUrl: process.env.WHATSAPP_API_URL || 'https://graph.facebook.com/v19.0',
   whatsappTemplateName: process.env.WHATSAPP_TEMPLATE_NAME || 'logincode',
   whatsappTemplateLanguage: process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'en_US',
