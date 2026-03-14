@@ -1,4 +1,3 @@
-const axios = require('axios');
 const twilio = require('twilio');
 const {
   twilioAccountSid,
@@ -15,15 +14,11 @@ const {
 } = require('../config/env');
 const { normalizeMobile } = require('../utils/mobile');
 const prisma = require('../config/prisma');
+const { sendMessageToPlatform } = require('./whatsapp-platform.client');
 
 const memoryOtp = new Map();
 const client = twilioAccountSid && twilioAuthToken ? twilio(twilioAccountSid, twilioAuthToken) : null;
 
-const WHATSAPP_PLATFORM_URL =
-  'https://whatsappplatform-production.up.railway.app/api/send-message';
-
-const API_KEY =
-  'fdbf0504626128f64e4ecb27de92c2ed1ab29600a20b02f2';
 
 async function sendOtp(mobile) {
   const normalizedMobile = normalizeMobile(mobile);
@@ -37,9 +32,12 @@ async function sendOtp(mobile) {
     return { provider: 'twilio-verify-whatsapp' };
   }
 
-  if (WHATSAPP_PLATFORM_URL && API_KEY) {
+  try {
     await sendOTP(normalizedMobile, code);
     return { provider: 'whatsapp-platform-api' };
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error(`WhatsApp platform OTP failed, falling back: ${error.message}`);
   }
 
   if (whatsappPhoneNumberId && whatsappAccessToken && whatsappApiUrl) {
@@ -190,22 +188,7 @@ async function sendOTP(phone, otp) {
   const message = `Your Mycrowb OTP is ${otpCode}. Valid for 5 minutes. Do not share this code.`;
 
   try {
-    const response = await axios.post(
-      WHATSAPP_PLATFORM_URL,
-      {
-        keyword: 'MYCROWB',
-        to: recipient,
-        message
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': API_KEY
-        }
-      }
-    );
-
-    const data = response.data;
+    const data = await sendMessageToPlatform({ mobile: recipient, message });
 
     const normalizedMobile = normalizeMobile(phone);
     memoryOtp.set(normalizedMobile, otpCode);
@@ -221,13 +204,12 @@ async function sendOTP(phone, otp) {
 
     return data;
   } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('WhatsApp send failed:', error.response?.data || error.message);
-    const err = new Error(error?.response?.data?.error?.message || 'Failed to send OTP via WhatsApp platform');
-    err.status = error?.response?.status || 502;
+    const err = new Error(error.message || 'Failed to send OTP via WhatsApp platform');
+    err.status = error?.status || 502;
     throw err;
   }
 }
+
 
 
 async function sendWhatsAppMagicLink(phoneNumber, userName, token) {
