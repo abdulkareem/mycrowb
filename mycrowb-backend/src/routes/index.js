@@ -12,5 +12,6 @@ router.use('/staff', require('./staff.routes'));
 router.use('/super-admin', require('./super-admin.routes'));
 router.use('/track-staff', require('./track-staff.routes'));
 router.use('/registration', require('./registration.routes'));
+router.use('/whatsapp', require('./whatsapp-integration.routes'));
 
 module.exports = router;

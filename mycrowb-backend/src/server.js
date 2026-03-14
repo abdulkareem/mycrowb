@@ -7,12 +7,14 @@ const { port, trustProxy, webhookVerifyToken, appApiKey } = require('./config/en
 const routes = require('./routes');
 const { errorHandler } = require('./middleware/error.middleware');
 const { whatsappWebhook } = require('./controllers/auth.controller');
+const { requestContext } = require('./middleware/request-context.middleware');
 
 const app = express();
 
 app.set('trust proxy', trustProxy);
 
 app.use(helmet());
+app.use(requestContext);
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));

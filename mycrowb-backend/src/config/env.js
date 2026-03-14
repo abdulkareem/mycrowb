@@ -27,9 +27,16 @@ module.exports = {
   twilioVerifyServiceSid: process.env.TWILIO_VERIFY_SERVICE_SID,
   smsFallbackSender: process.env.SMS_FALLBACK_SENDER || 'MYCROWB',
   twilioWhatsappFrom: process.env.TWILIO_WHATSAPP_FROM,
-  whatsappPlatformApiUrl: process.env.WHATSAPP_PLATFORM_API_URL || 'https://whatsappplatform-production.up.railway.app/api/send',
-  whatsappPlatformApiKey: process.env.WHATSAPP_PLATFORM_API_KEY,
+  whatsappPlatformBaseUrl: process.env.WHATSAPP_PLATFORM_BASE_URL || process.env.WHATSAPP_PLATFORM_API_URL || 'https://whatsappplatform-production.up.railway.app',
+  whatsappPlatformSendPath: process.env.WHATSAPP_PLATFORM_SEND_PATH || '/api/messages/send',
+  whatsappPlatformTimeoutMs: Number(process.env.WHATSAPP_PLATFORM_TIMEOUT_MS || 8000),
+  whatsappPlatformApiKey: process.env.APP_API_KEY || process.env.WHATSAPP_PLATFORM_API_KEY,
   whatsappPlatformKeyword: process.env.WHATSAPP_PLATFORM_KEYWORD || 'MYCROWB',
+  whatsappPlatformWebhookSecret: process.env.WHATSAPP_PLATFORM_WEBHOOK_SECRET || process.env.WEBHOOK_VERIFY_TOKEN || process.env.APP_API_KEY,
+  whatsappPlatformWebhookAllowedIps: String(process.env.WHATSAPP_PLATFORM_WEBHOOK_ALLOWED_IPS || '')
+    .split(',')
+    .map((ip) => ip.trim())
+    .filter(Boolean),
   whatsappPhoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
   whatsappAccessToken: process.env.WHATSAPP_ACCESS_TOKEN,
   appApiKey: process.env.APP_API_KEY,
