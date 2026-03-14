@@ -5,6 +5,9 @@ const {
   twilioVerifyServiceSid,
   smsFallbackSender,
   twilioWhatsappFrom,
+  whatsappPlatformApiUrl,
+  whatsappPlatformApiKey,
+  whatsappPlatformKeyword,
   whatsappPhoneNumberId,
   whatsappAccessToken,
   whatsappApiUrl,
@@ -28,6 +31,11 @@ async function sendOtp(mobile) {
       channel: 'whatsapp'
     });
     return { provider: 'twilio-verify-whatsapp' };
+  }
+
+  if (whatsappPlatformApiUrl && whatsappPlatformApiKey) {
+    await sendWhatsAppPlatformOTP(normalizedMobile, code);
+    return { provider: 'whatsapp-platform-api' };
   }
 
   if (whatsappPhoneNumberId && whatsappAccessToken && whatsappApiUrl) {
@@ -168,6 +176,48 @@ async function sendWhatsAppOTP(phoneNumber, otp) {
   return data;
 }
 
+async function sendWhatsAppPlatformOTP(phoneNumber, otp) {
+  const recipient = formatWhatsappRecipient(phoneNumber);
+  const otpCode = String(otp || `${Math.floor(100000 + Math.random() * 900000)}`);
+  const message = `Your Mycrowb OTP is ${otpCode}.\nValid for 5 minutes.\nDo not share this code.`;
+
+  const response = await fetch(whatsappPlatformApiUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': whatsappPlatformApiKey
+    },
+    body: JSON.stringify({
+      keyword: whatsappPlatformKeyword,
+      to: recipient,
+      type: 'text',
+      message
+    })
+  });
+
+  const data = await response.json();
+
+  if (!response.ok || data.error) {
+    const err = new Error(data?.error?.message || `WhatsApp Platform request failed with status ${response.status}`);
+    err.status = 502;
+    throw err;
+  }
+
+  const normalizedMobile = normalizeMobile(phoneNumber);
+  memoryOtp.set(normalizedMobile, otpCode);
+
+  await prisma.user.updateMany({
+    where: { mobile: normalizedMobile },
+    data: {
+      userPin: otpCode,
+      pinAttempts: 0,
+      pinCreatedAt: new Date()
+    }
+  });
+
+  return data;
+}
+
 
 async function sendWhatsAppMagicLink(phoneNumber, userName, token) {
   const recipient = formatWhatsappRecipient(phoneNumber);
@@ -266,4 +316,13 @@ async function sendVerificationCodeMessage(phoneNumber, code) {
   return sendWhatsappMessage(phoneNumber, message);
 }
 
-module.exports = { sendOtp, verifyOtp, sendWhatsappMessage, sendWhatsAppPin, sendWhatsAppOTP, sendWhatsAppMagicLink, sendVerificationCodeMessage };
+module.exports = {
+  sendOtp,
+  verifyOtp,
+  sendWhatsappMessage,
+  sendWhatsAppPin,
+  sendWhatsAppOTP,
+  sendWhatsAppPlatformOTP,
+  sendWhatsAppMagicLink,
+  sendVerificationCodeMessage
+};
