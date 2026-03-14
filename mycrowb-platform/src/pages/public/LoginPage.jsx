@@ -5,6 +5,7 @@ import client from '../../api/client';
 
 const BUSINESS_NUMBER = import.meta.env.VITE_BUSINESS_WHATSAPP_NUMBER || '919744917623';
 const DEVICE_ID_KEY = 'mycrowbDeviceId';
+const WHATSAPP_TRIGGER_KEYWORD = import.meta.env.VITE_WHATSAPP_TRIGGER_KEYWORD || 'MYCROWB';
 
 const roleDashboard = {
   admin: '/admin/overview',
@@ -75,7 +76,7 @@ export default function LoginPage() {
   };
 
   const startWhatsappVerification = async () => {
-    window.open(`https://wa.me/${BUSINESS_NUMBER}?text=Hi`, '_blank', 'noopener,noreferrer');
+    window.open(`https://wa.me/${BUSINESS_NUMBER}?text=${encodeURIComponent(WHATSAPP_TRIGGER_KEYWORD)}`, '_blank', 'noopener,noreferrer');
   };
 
   const submitCode = async () => {
